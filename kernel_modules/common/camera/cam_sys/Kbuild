@@ -1,0 +1,86 @@
+#
+# sprd_camera.ko
+#
+# Kbuild: for kernel building external module
+#
+# Note:
+# - Please refer to modules/sample/Kbuild to find out what should be
+#   done is this Kbuild file
+#
+
+#
+# Source List
+#
+KO_MODULE_NAME := sprd_camera
+KO_MODULE_SRC  :=
+
+ifeq ($(strip $(BSP_KERNEL_VERSION)),unisoc-kernel)
+KO_MODULE_PATH := $(srctree)/$(src)
+else
+KO_MODULE_PATH := $(src)
+endif
+
+ISP_DIR   := $(BSP_BOARD_CAMERA_MODULE_ISP_VERSION)
+CSI_DIR   := $(BSP_BOARD_CAMERA_MODULE_CSI_VERSION)
+ADAPT_DIR := $(BSP_BOARD_CAMERA_MODULE_ISP_ADAPT_VERSION)
+
+KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/src/*.c)
+
+ifeq ($(ADAPT_DIR),qogirn6l)
+  KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/adpt/qogirn6pro/block/*.c)
+  KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/adpt/qogirn6pro/*.c)
+else
+  KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/adpt/$(ADAPT_DIR)/block/*.c)
+  KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/adpt/$(ADAPT_DIR)/*.c)
+endif
+
+KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/test/*.c)
+KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/alg_calc/*.c)
+KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/debug/*.c)
+
+ifeq ($(CONFIG_COMPAT),y)
+  KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/compat/*.c)
+endif
+
+ifeq ($(strip $(BSP_BUILD_VARIANT)),userdebug)
+  ccflags-y += -DCONFIG_SPRD_DCAM_DEBUG_RAW
+endif
+
+ccflags-y += -I$(KO_MODULE_PATH)/../interface/cam_sys
+ccflags-y += -I$(KO_MODULE_PATH)/../sensor
+ccflags-y += -I$(KO_MODULE_PATH)/../sensor/csi2/sprd/$(CSI_DIR)
+ccflags-y += -I$(KO_MODULE_PATH)/../flash/flash_drv
+ccflags-y += -I$(KO_MODULE_PATH)/inc
+ccflags-y += -I$(KO_MODULE_PATH)/../os_adapt/linux
+ccflags-y += -I$(srctree)/drivers/staging/android/ion
+
+ifeq ($(ADAPT_DIR),qogirn6l)
+  ccflags-y += -I$(KO_MODULE_PATH)/adpt/qogirn6pro/inc
+else
+  ccflags-y += -I$(KO_MODULE_PATH)/adpt/$(ADAPT_DIR)/inc
+endif
+ccflags-y += -I$(KO_MODULE_PATH)/test/
+ccflags-y += -I$(KO_MODULE_PATH)/alg_calc/
+ccflags-y += -I$(KO_MODULE_PATH)/debug/
+
+ifeq ($(ADAPT_DIR), sharkl3)
+ccflags-y += -DPROJ_SHARKL3
+else ifeq ($(ADAPT_DIR), sharkl5pro)
+ccflags-y += -DPROJ_SHARKL5PRO
+else ifeq ($(ADAPT_DIR), sharkl5)
+ccflags-y += -DPROJ_SHARKL5
+else ifeq ($(ADAPT_DIR), qogirl6)
+ccflags-y += -DPROJ_QOGIRL6
+else ifeq ($(ADAPT_DIR), qogirn6pro)
+ccflags-y += -DPROJ_QOGIRN6PRO
+else ifeq ($(ADAPT_DIR), qogirn6l)
+ccflags-y += -DPROJ_QOGIRN6L
+endif
+
+#
+# Final Objects
+#
+obj-m := $(KO_MODULE_NAME).o
+EXTRA_CFLAGS += -I$(KO_MODULE_PATH)/../power/kernel
+# Comment it if the only object file has the same name with module
+$(KO_MODULE_NAME)-y := $(patsubst $(KO_MODULE_PATH)/%.c,%.o,$(KO_MODULE_SRC))

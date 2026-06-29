@@ -1,0 +1,9 @@
+#
+# Unisoc Camera device (NEW)configuration
+#
+menu "Unisoc Camera Platform"
+
+config UNISOC_CAMERA_OCP8137
+	tristate "Unisoc Camera Ocp8137"
+	depends on UNISOC_CAMERA_FLASH_DRV
+endmenu

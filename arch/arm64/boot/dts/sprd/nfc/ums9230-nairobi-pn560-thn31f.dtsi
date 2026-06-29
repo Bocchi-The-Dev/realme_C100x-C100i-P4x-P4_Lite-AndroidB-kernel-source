@@ -1,0 +1,37 @@
+/*
+mixed-chipset support
+NXP -> PU -> "pn560";
+TMS -> PD -> "thn31f";
+*/
+
+&i2c2 {
+        status = "okay";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        tms_thn31@28 {
+                status = "okay";
+                compatible = "tms,nfc";
+                reg = <0x28>;
+                mixed-chipset = <1>;
+                clock-names = "tms_clk","source","enable";
+                clocks = <&aon_clk CLK_AUX0>, <&ext_26m>, <&aonapb_gate CLK_AUX0_EB>;
+                tms,device-name   = "tms_nfc";
+                tms,device-count  = <1>;
+                tms,irq-gpio      = <&ap_gpio 166 0>; //GPIO1_A0
+                tms,ven-gpio      = <&ap_gpio 134 0>; //GPIO1_A1
+                //tms,download-gpio = <&ap_gpio 53 0>; //GPIO1_A3
+                tms,clkreq-gpio   = <&ap_gpio 156 0>;
+       };
+        pn557: pn557@29{
+                status = "okay";
+                compatible = "nxp,pn557";
+                reg = <0x29>;
+                mixed-chipset = <1>;
+                clock-names = "pn557_clk","source","enable";
+                clocks = <&aon_clk CLK_AUX0>, <&ext_26m>, <&aonapb_gate CLK_AUX0_EB>;
+                nxp,ven-gpio = <&ap_gpio 134 0>;
+                nxp,irq-gpio = <&ap_gpio 166 0>;
+                //nxp,firm-gpio = <&ap_gpio 53 0>;
+                nxp,clk-gpio = <&ap_gpio 156 0>;
+        };
+};

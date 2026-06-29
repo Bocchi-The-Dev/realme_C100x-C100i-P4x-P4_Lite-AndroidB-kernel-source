@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config UNISOC_FG_TASK_UID
+	tristate "foreground task uid"
+	default y
+	help
+	  This option enable to show uid information fo foreground apps.
+

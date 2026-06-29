@@ -1,0 +1,153 @@
+# SPDX-FileCopyrightText: 2016-2023 Unisoc (Shanghai) Technologies Co. Ltd
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# sprd_wlan_combo.ko
+#
+# Kbuild: for kernel building external module
+#
+# Note:
+# - Please refer to modules/sample/Kbuild to find out what should be
+#   done is this Kbuild file
+#
+
+ifeq ($(BSP_BUILD_VARIANT),userdebug)
+ccflags-y += -DCONFIG_SPRD_WLAN_DEBUG
+endif
+
+ifeq ($(BSP_MODULE_ION_VERSION),ums9620)
+CONFIG_SPRD_PAMWIFI := y
+endif
+
+# ccflags-y += -DCONFIG_SC2355_WLAN_RTT
+# ccflags-y += -DDRV_RESET_SELF
+
+# CONFIG_SPRD_DFS := y
+ifeq ($(CONFIG_SPRD_DFS),y)
+ccflags-y += -DENABLE_DFS
+endif
+
+#ENABLE_CHR_BOARD := \
+#		 ums9230-1h10-overlay \
+#                 ums9230-4h10-overlay \
+#		 ums9230-6h10-overlay \
+#                 ums9620-2h10-overlay \
+#		 ums9621-1h10-overlay \
+#		 ums9620-2h10_uob_marlin3-overlay
+#ifneq ($(findstring $(BSP_DTBO), $(ENABLE_CHR_BOARD)),)
+#CONFIG_SPRD_CHR := y
+#ccflags-y += -DENABLE_CHR
+#endif
+
+SUPPORT_WPA3_ENTERPRISE_BOARD := \
+		ums9230-1h10-overlay \
+		ums9230-1h10_go-overlay \
+		ums9230-6h10-overlay \
+		ums9230-6h10-go-overlay
+ifneq ($(findstring $(BSP_DTBO), $(SUPPORT_WPA3_ENTERPRISE_BOARD)),)
+ccflags-y += -DSUPPORT_WPA3_ENTERPRISE
+endif
+
+
+KO_MODULE_NAME := sprd_wlan_combo
+
+ifeq ($(strip $(BSP_KERNEL_VERSION)),kernel5.15)
+KO_MODULE_PATH := $(src)
+else
+KO_MODULE_PATH := $(srctree)/$(src)
+endif
+
+ccflags-y += -I$(KO_MODULE_PATH)
+ccflags-y += -I$(KO_MODULE_PATH)/../../include
+ccflags-y += -I$(KO_MODULE_PATH)/common
+ccflags-y += -I$(KO_MODULE_PATH)/sc2332
+ccflags-y += -I$(KO_MODULE_PATH)/sc2355
+
+
+ifeq ($(CONFIG_SPRD_PAMWIFI),y)
+ccflags-y += -DENABLE_PAM_WIFI
+ccflags-y += -I$(KO_MODULE_PATH)/sc2355/pamwifi
+ccflags-y += -I$(KO_MODULE_PATH)/sc2355/pamwifi/r2p0
+endif
+#
+# Final Objects
+#
+obj-m := $(KO_MODULE_NAME).o
+
+SPRD_WLAN_COMMON := \
+		common/sprd_wlan.o \
+		common/cfg80211.o \
+		common/debug.o \
+		common/delay_work.o \
+		common/iface.o \
+		common/msg.o \
+		common/npi.o \
+		common/report.o \
+		common/apf.o \
+		common/tdls.o \
+		common/chr.o \
+		common/wifi_config.o
+
+SC2332_WLAN := \
+		sc2332/acs.o \
+		sc2332/init.o \
+		sc2332/cmdevt.o \
+		sc2332/qos.o \
+		sc2332/scan.o \
+		sc2332/tcp_ack.o \
+		sc2332/txrx.o \
+		sc2332/fcc.o \
+		sc2332/vendor.o \
+		sc2332/wapi.o
+
+SC2332_SIPC_WLAN := sc2332/sipc.o
+
+SC2332_SDIO_WLAN := sc2332/sdio.o
+
+SC2355_WLAN := \
+		sc2355/acs.o \
+		sc2355/api_version.o \
+		sc2355/cmdevt.o \
+		sc2355/defrag.o \
+		sc2355/hw_param.o \
+		sc2355/init.o \
+		sc2355/mm.o \
+		sc2355/qos.o \
+		sc2355/reorder.o \
+		sc2355/rx.o \
+		sc2355/scan.o \
+		sc2355/tcp_ack.o \
+		sc2355/tx.o \
+		sc2355/fcc.o \
+		sc2355/vendor.o \
+		sc2355/rtt.o \
+		sc2355/cpu_performance.o
+
+SC2355_SDIO_WLAN := sc2355/sdio.o
+
+SC2355_PCIE_WLAN := \
+		sc2355/pcie.o \
+		sc2355/pcie_buf.o
+
+SC2355_SIPC_WLAN := \
+		sc2355/hw_sipc_param.o \
+		sc2355/sipc.o \
+		sc2355/sipc_buf.o
+
+SC2355_PAMWIFI_WLAN := \
+                sc2355/pamwifi/pamwifi_core.o \
+                sc2355/pamwifi/r2p0/r2p0.o
+
+SC2355_DFS_WLAN := sc2355/dfs.o
+
+$(KO_MODULE_NAME)-y += \
+		$(SPRD_WLAN_COMMON) \
+		$(SC2332_WLAN) \
+		$(SC2332_SIPC_WLAN) \
+		$(SC2355_WLAN) \
+		$(SC2355_SDIO_WLAN) \
+		$(SC2355_SIPC_WLAN) \
+		$(SC2355_PCIE_WLAN)
+
+$(KO_MODULE_NAME)-$(CONFIG_SPRD_PAMWIFI) += $(SC2355_PAMWIFI_WLAN)
+
+$(KO_MODULE_NAME)-$(CONFIG_SPRD_DFS) += $(SC2355_DFS_WLAN)

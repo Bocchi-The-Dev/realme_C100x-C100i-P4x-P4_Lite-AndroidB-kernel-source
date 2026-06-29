@@ -1,0 +1,12 @@
+#
+# Unisoc FM device configuration
+#
+menu "Unisoc FM Device Drivers"
+config UNISOC_WCN_FM
+	tristate "SPRD_FM"
+	help
+	  This is support wcn chip for Unisoc.
+	  if you want to use 23xx series wcn chip of Unisoc.
+	  please say "y".
+
+endmenu

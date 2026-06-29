@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: 2021 Unisoc (Shanghai) Technologies Co., Ltd
+# SPDX-License-Identifier: GPL-2.0-only
+
+
+
+obj-y += mali_kbase_config_sharkl5Pro.o

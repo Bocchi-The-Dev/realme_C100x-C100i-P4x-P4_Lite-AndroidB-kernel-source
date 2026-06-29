@@ -1,0 +1,137 @@
+/*
+ * R61350 Truly LCD config dtsi file for spreadtrum
+ *
+ * Copyright (C) 2018, Spreadtrum Communications Inc.
+ *
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ */
+
+/ {
+	fragment {
+		target-path = "/";
+		__overlay__ {
+			lcds {
+				lcd_td4160b_tm_mipi_hd: lcd_td4160b_tm_mipi_hd {
+
+					sprd,dsi-work-mode = <1>; /* video burst mode*/
+					sprd,dsi-lane-number = <4>;
+					sprd,dsi-color-format = "rgb888";
+
+					sprd,phy-bit-clock = <1020000>;	/* kbps */
+					sprd,phy-escape-clock = <20000>;/* kHz */
+					sprd,dpi-clk-div = <6>;
+					sprd,video-lp-cmd-enable = <1>;
+					sprd,hporch-lp-disable = <1>;
+
+					sprd,width-mm = <0x47>;
+					sprd,height-mm = <0x9C>;
+
+					sprd,esd-check-enable = <1>;
+					sprd,esd-check-mode = <0>;
+					sprd,esd-check-period = <2000>;
+					sprd,esd-check-register = <0x0A>;
+					sprd,esd-check-value = <0x9C>;
+
+					sprd,power-i2c-bus = <4>;
+					sprd,power-i2c-addr = <0x3e>;
+					sprd,power-i2c-reg = [00 01 03];
+					sprd,power-i2c-val = [14 14 03];
+
+					sprd,reset-on-sequence = <1 5>, <0 5>, <1 30>;
+					sprd,reset-off-sequence = <0 5>;
+
+					sprd,ovt-tp-aod-support = <1>;
+					/*
+					 * Use 4 bits number for descripting video lp mode, and it can be combined used.
+					 * BIT(0): allow vactive enter lp;
+					 * BIT(1): allow vfp enter lp;
+					 * BIT(2): allow vbp enter lp;
+					 * BIT(3): allow vsa enter lp;
+					 * For example:
+					 * If we need vfp & vbp enter lp, we can calculate this value as a result of BIT(1) | BIT(2)
+					 * And we get the result of 3 and set this value to lcd dt property sprd,video-lp-en-mode.
+					 * If we need all stage can enter lp, we can calculate this value as a result of BIT(0) | BIT(1) | BIT(2) | BIT(3).
+					 * And we get the result of 15 and set this value to lcd dt property sprd,video-lp-en-mode.
+					 */
+					sprd,video-lp-en-mode = <2>;
+					sprd,use-dcs-write;
+					sprd,initial-command = [
+						29 00 00 02 B0 04
+						29 00 00 02 D6 00
+						29 10 00 03 F5 E6 5A
+						29 00 00 07 BA 06 90 09 00 0b 00
+						29 00 00 19 CE 16 10 42 4b 4e 5c 60 62 7f 8b 9f af b6 ba bf c4 c9 0f 06 04 04 00 04 8c
+						29 00 00 0E BE 07 00 00 00 00 00 00 00 00 00 00 00 00
+						29 00 00 04 D2 12 00 00
+						29 00 00 03 C1 30 81
+						29 00 00 02 CF 02
+						39 00 00 02 53 24
+						39 00 00 02 55 00
+						39 00 00 02 35 00
+						29 00 00 02 B0 03
+						05 3A 00 01 29
+						05 01 00 01 11
+						];
+
+					sprd,sleep-in-command = [
+						05 14 00 01 28
+						05 78 00 01 10
+						];
+
+					sprd,sleep-out-command = [
+						05 14 00 01 11
+						05 78 00 01 29
+						];
+
+					sprd,cabc-off-command = [
+						39 00 00 02 55 03
+						];
+					sprd,cabc-ui-command = [
+						39 00 00 02 55 13
+						];
+					sprd,cabc-still-command = [
+						39 00 00 02 55 23
+						];
+					sprd,cabc-moving-command = [
+						39 00 00 02 55 33
+						];
+
+					display-timings {
+						native-mode = <&td4160b_tm_timing0>;
+
+						td4160b_tm_timing0: timing0 {
+							clock-frequency = <170000000>;
+							hactive = <720>;
+							vactive = <1600>;
+							hback-porch = <200>;
+							hfront-porch = <252>;
+							vback-porch = <32>;
+							vfront-porch = <772>;
+							hsync-len = <4>;
+							vsync-len = <4>;
+						};
+                                                td4160b_tm_timing1: timing1 {
+							clock-frequency = <170000000>;
+							hactive = <720>;
+							vactive = <1600>;
+							hback-porch = <120>;
+							hfront-porch = <208>;
+							vback-porch = <32>;
+							vfront-porch = <158>;
+							hsync-len = <4>;
+							vsync-len = <4>;
+						};
+					};
+
+					oled-backlight {
+						default-brightness = <1306>;
+						sprd,max-level = <4095>;
+						brightness-levels = [
+							39 00 00 03 51 00 00
+						];
+					};
+				};
+			};
+		};
+	};
+};

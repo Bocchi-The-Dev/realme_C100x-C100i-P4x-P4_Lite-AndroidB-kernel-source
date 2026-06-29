@@ -1,0 +1,17 @@
+#
+# Unisoc Camera device (NEW)configuration
+#
+menu "Unisoc Camera Platform"
+
+config UNISOC_CAMERA_CPP
+	tristate "Unisoc Camera Cpp"
+	depends on UNISOC_CAMERA_POWER && UNISOC_CAMERA_CAMSYS
+
+config UNISOC_CAMERA_UMS512
+	tristate "Unisoc Camera Sharkl5pro"
+	depends on UNISOC_CAMERA_FLASH_DRV && UNISOC_CAMERA_SENSOR && UNISOC_CAMERA_POWER && UNISOC_CAMERA_CAMSYS
+
+config UNISOC_CAMERA_UMS9621
+	tristate "Unisoc Camera QogirN6L"
+	depends on UNISOC_CAMERA_FLASH_DRV && UNISOC_CAMERA_SENSOR && UNISOC_CAMERA_POWER && UNISOC_CAMERA_CAMSYS
+endmenu

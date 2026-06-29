@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# unisoc multi freq control for cpufreq
+#
+
+config UNISOC_MULTI_FREQ_CONTROL
+	tristate "enable unisoc multi freq control"
+	depends on CPU_FREQ
+	help
+	This option enables cpufreq high level freq control for user.
+
+config UNISOC_FIX_FREQ
+	bool "enable unisoc fix freq for debug"
+	depends on UNISOC_MULTI_FREQ_CONTROL
+	default n
+	help
+	Add scaling_fix_freq ops for debug.
+
+config UNISOC_FREQLINK
+	tristate "enable unisoc freqlink driver"
+	depends on CPU_FREQ && DEVFREQ_SPRD_DDR_DVFS
+	default n
+	help
+	  Spreadtrum freqlink driver for cpu and ddr.
+	  Say Y here to support the cpu/ddr freqlink function.
+	  It provides freqlink table sysfs nodes to set the
+	  target ddr frequencies with different cpu frequencies.

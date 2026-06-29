@@ -1,0 +1,29 @@
+#SPDX-FileCopyrightText: 2019 Unisoc (Shanghai) Technologies Co.Ltd
+#SPDX-License-Identifier: GPL-2.0-only
+#
+# Configurations
+#
+CONFIG_UNISOC_VSP := m
+
+#
+# Source List
+#
+vsp-y := \
+	sprd_vsp.o \
+	vsp_common.o \
+	vsp_isr_func.o
+
+#
+# Build Options
+#
+#
+# Final Objects
+#
+obj-$(CONFIG_UNISOC_VSP) := vsp.o
+KO_MODULE_PATH := $(src)
+
+ADAPT_DIR := $(BSP_BOARD_CAMERA_MODULE_VSP_ADAPT_VERSION)
+ifeq ($(ADAPT_DIR), pike2)
+ccflags-y += -DPROJ_PIKE2
+endif
+EXTRA_CFLAGS += -I$(KO_MODULE_PATH)/../../../common/camera/power/kernel/

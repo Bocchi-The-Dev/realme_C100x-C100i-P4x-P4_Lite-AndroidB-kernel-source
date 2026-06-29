@@ -1,0 +1,129 @@
+#
+# unisoc_wcn_bsp.ko
+#
+# Kbuild: for kernel building external module
+#
+# Note:
+# - Please refer to modules/sample/Kbuild to find out what should be
+#   done is this Kbuild file
+#
+
+KO_MODULE_NAME := unisoc_wcn_bsp
+
+ifeq ($(strip $(BSP_KERNEL_VERSION)),kernel5.15)
+KO_MODULE_PATH := $(src)
+else
+KO_MODULE_PATH := $(srctree)/$(src)
+endif
+
+ccflags-y += -I$(KO_MODULE_PATH)
+ccflags-y += -I$(KO_MODULE_PATH)/include
+ccflags-y += -I$(KO_MODULE_PATH)/../../include
+ccflags-y += -I$(KO_MODULE_PATH)/boot
+ccflags-y += -I$(KO_MODULE_PATH)/pcie
+ccflags-y += -I$(KO_MODULE_PATH)/platform
+ccflags-y += -I$(KO_MODULE_PATH)/platform/rf
+ccflags-y += -I$(KO_MODULE_PATH)/platform/gnss
+ccflags-y += -I$(KO_MODULE_PATH)/sleep
+ccflags-y += -I$(KO_MODULE_PATH)/sipc
+ccflags-y += -I$(srctree)/drivers
+
+# compile WCN_PCIE or not
+ifeq ($(CONFIG_PCIE_SPRD),m)
+BUILD_WCN_PCIE := true
+endif
+
+ifeq ($(BUILD_WCN_PCIE),true)
+ccflags-y += -DBUILD_WCN_PCIE
+CONFIG_SPRD_PCIE := y
+endif
+
+ifeq ($(CONFIG_SPRD_PCIE),y)
+ccflags-y += -I$(KO_MODULE_PATH)/pcie
+endif
+
+ifeq ($(TARGET_BUILD_VARIANT),user)
+ccflags-y += -DFLAG_WCN_USER
+endif
+
+#
+# Final Objects
+#
+obj-m := $(KO_MODULE_NAME).o
+
+WCN_BSP_COMMON := \
+		wcn_bus.o \
+		sprd_wcn.o
+
+WCN_BSP_PLATFORM := \
+		platform/wcn_parn_parser.o \
+		platform/wcn_procfs.o \
+		platform/wcn_txrx.o \
+		platform/wcn_log.o \
+		platform/wcn_misc.o \
+		platform/bufring.o \
+		platform/wcn_op.o \
+		platform/sysfs.o \
+		platform/reset.o \
+		platform/reset_test.o \
+		platform/loopcheck.o \
+		platform/rf/rf.o \
+		platform/wcn_dump_integrate.o \
+		platform/wcn_boot.o \
+		platform/gnss/gnss.o \
+		platform/wcn_dump.o \
+		platform/gnss_dump.o \
+		platform/wcn_pm_qos.o \
+		platform/wcn_gnss_dump.o \
+		platform/wcn_fw_dump.o \
+		platform/wcn_swd_dap.o \
+		platform/mem_pd_mgr.o \
+		platform/wcn_debugfs.o \
+		platform/wcn_ca_trusty.o \
+		platform/wcn_chr.o
+
+WCN_BSP_BOOT := \
+		boot/wcn_integrate.o \
+		boot/wcn_integrate_dev.o \
+		boot/wcn_integrate_boot.o \
+		boot/wcn_debug_bus.o
+
+#PCIE FILE
+WCN_BSP_PCIE := \
+		pcie/pcie.o \
+		pcie/edma_engine.o \
+		pcie/pcie_dbg.o \
+		pcie/ioctl.o \
+		pcie/mchn.o \
+		pcie/edma_util.o \
+		pcie/pcie_attach_bus.o \
+		pcie/pcie_pm.o
+
+#SDIO FILE
+WCN_BSP_SDIO := \
+		sdio/sdiohal_main.o \
+		sdio/sdiohal_common.o \
+		sdio/sdiohal_tx.o \
+		sdio/sdiohal_rx.o \
+		sdio/sdiohal_if.o
+
+#sipc
+WCN_BSP_SIPC := \
+		sipc/wcn_sipc.o
+
+#sleep
+WCN_BSP_SLEEP := \
+		sleep/sdio_int.o \
+		sleep/slp_test.o \
+		sleep/slp_sdio.o \
+		sleep/slp_mgr.o
+
+$(KO_MODULE_NAME)-y += \
+		$(WCN_BSP_COMMON) \
+		$(WCN_BSP_PLATFORM) \
+		$(WCN_BSP_BOOT) \
+		$(WCN_BSP_SDIO) \
+		$(WCN_BSP_SIPC) \
+		$(WCN_BSP_SLEEP)
+
+$(KO_MODULE_NAME)-$(CONFIG_SPRD_PCIE) += $(WCN_BSP_PCIE)

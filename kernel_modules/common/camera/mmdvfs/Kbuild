@@ -1,0 +1,87 @@
+#
+# mmdvfs.ko
+#
+# Kbuild: for kernel building external module
+#
+# Note:
+# - Please refer to modules/sample/Kbuild to find out what should be
+#   done is this Kbuild file
+#
+#
+# Source List
+#
+KO_MODULE_NAME := mmdvfs
+
+ifeq ($(strip $(BSP_KERNEL_VERSION)),kernel5.15)
+	KO_MODULE_PATH := $(src)
+	DVFS_DEVICE := $(strip $(BSP_BOARD_CAMERA_MODULE_DVFS))
+else
+	KO_MODULE_PATH := $(srctree)/$(src)
+
+	ifeq ($(CONFIG_UNISOC_CAMERA_UMS9621),m)
+		DVFS_DEVICE := qogirn6l
+	endif
+
+	ifeq ($(CONFIG_UNISOC_CAMERA_UMS9620),m)
+		DVFS_DEVICE := qogirn6pro
+	endif
+
+	ifeq ($(CONFIG_UNISOC_CAMERA_UMS9230),m)
+		DVFS_DEVICE := qogirl6
+	endif
+
+	ifeq ($(CONFIG_UNISOC_CAMERA_UMS512),m)
+		DVFS_DEVICE := sharkl5pro
+	endif
+
+	ifeq ($(CONFIG_UNISOC_CAMERA_UMS312),m)
+		DVFS_DEVICE := sharkl5
+	endif
+endif
+
+KO_MODULE_SRC  :=
+
+KO_MODULE_SRC += \
+	$(shell find $(KO_MODULE_PATH)/rXp0/mm_dvfs_devfreq -name "*.c") \
+	$(shell find $(KO_MODULE_PATH)/rXp0/mmsys_common -name "*.c") \
+	$(shell find $(KO_MODULE_PATH)/rXp0/dvfs_driver/dvfs_ip_module/common_ip -name "*.c") \
+	$(shell find $(KO_MODULE_PATH)/rXp0/dvfs_driver/dvfs_reg_param/$(DVFS_DEVICE) -name "*.c")
+
+ifeq ($(DVFS_DEVICE),qogirn6l)
+	KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/rXp0/dvfs_driver/dvfs_ip_module/dcam2_3*.c)
+	KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/rXp0/dvfs_driver/dvfs_ip_module/dcam_mtx*.c)
+	KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/rXp0/dvfs_driver/dvfs_ip_module/jpg*.c)
+else ifeq ($(DVFS_DEVICE),qogirn6pro)
+	KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/rXp0/dvfs_driver/dvfs_ip_module/dcam2_3*.c)
+	KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/rXp0/dvfs_driver/dvfs_ip_module/dcam_mtx*.c)
+	KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/rXp0/dvfs_driver/dvfs_ip_module/jpg*.c)
+	KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/rXp0/dvfs_driver/dvfs_ip_module/depth*.c)
+	KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/rXp0/dvfs_driver/dvfs_ip_module/fd*.c)
+	KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/rXp0/dvfs_driver/dvfs_ip_module/vd*.c)
+else
+	KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/rXp0/dvfs_driver/dvfs_ip_module/jpg*.c)
+	KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/rXp0/dvfs_driver/dvfs_ip_module/fd*.c)
+endif
+
+#
+# Build Options
+#
+# TODO: refine these includes
+ccflags-y += -I$(KO_MODULE_PATH)/rXp0/mm_dvfs_devfreq
+ccflags-y += -I$(KO_MODULE_PATH)/rXp0/mmsys_common
+ccflags-y += -I$(KO_MODULE_PATH)/rXp0/dvfs_driver/dvfs_reg_param/$(DVFS_DEVICE)
+ccflags-y += -I$(KO_MODULE_PATH)/../os_adapt/linux
+ccflags-y += -I$(srctree)/drivers/devfreq/
+
+# HAPS only
+ifeq ($(TEST_ON_HAPS),true)
+ccflags-y += -DTEST_ON_HAPS
+endif
+
+#
+# Final Objects
+#
+obj-m := $(KO_MODULE_NAME).o
+EXTRA_CFLAGS += -I$(KO_MODULE_PATH)/../power/kernel
+# Comment it if the only object file has the same name with module
+$(KO_MODULE_NAME)-y := $(patsubst $(KO_MODULE_PATH)/%.c,%.o,$(KO_MODULE_SRC))

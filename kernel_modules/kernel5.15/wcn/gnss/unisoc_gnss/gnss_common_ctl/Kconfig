@@ -1,0 +1,60 @@
+#
+# Unisoc GNSS device (NEW )configuration
+#
+menu "Unisoc GNSS Device Drivers"
+config UNISOC_GNSS_COMMON_CTL
+	tristate "Gnss commom ctl support"
+	help
+	Choose Y here if you want to support gnss_common_ctl function
+        for unisoc wcn sc23xx series chip.
+
+	In order to control your ext wcn chip, you will need enable it.
+	that include "boot, log, procfs, debugfs, at cmd, loopcheck, dumpmem,
+	reset, reboot,etc"
+
+config SC23XX
+	bool "SC23XX chip Support"
+	#depends on MMC
+	default n
+	help
+	  This is support wcn chip for unisoc.
+	  if you want to use 23xx series wcn chip of unisoc.
+	  please say "y".
+
+config WCN_INTEG
+	bool "WCN Integrated chip Support"
+	depends on SC23XX
+	default n
+	help
+	  This is support wcn chip for unisoc.
+	  If you want to use wcn integrated chip of unisoc.
+	  Please say "y".
+
+config SC2355
+	bool "SC2355 chip Support"
+	depends on SC23XX
+	default n
+	help
+	  This is support wcn chip for unisoc.
+	  If you want to use sc2355 chip of unisoc.
+	  Please say "y".
+
+config UMW2652
+	bool "UMW2652 chip Support"
+	depends on SC23XX
+	default n
+	help
+	  This is support wcn chip for unisoc.
+	  If you want to use umw2652 chip of unisoc.
+	  Please say "y".
+
+config UMW2653
+	bool "UMW2653 chip Support"
+	depends on SC23XX
+	default n
+	help
+	  This is support wcn chip for unisoc.
+	  If you want to use umw2653 chip of unisoc.
+	  Please say "y".
+
+endmenu

@@ -1,0 +1,81 @@
+/*ATL 10K*/
+/ {
+	fragment {
+			target-path = "/";
+			__overlay__ {
+
+			bat1: battery1 {
+                compatible = "simple-battery";
+                status = "okay";
+
+                charge-full-design-microamp-hours = <5800000>;
+                charge-term-current-microamp = <60000>;
+                constant-charge-voltage-max-microvolt = <4480000>;
+                factory-internal-resistance-micro-ohms = <114000>;
+                voltage-min-design-microvolt = <3450000>;
+
+                fast-charge-threshold-microvolt = <4200000>;
+                fullbatt-voltage = <4470000>;
+                fullbatt-current = <120000>;
+                // first-fullbatt-current = <150000>;
+                fullbatt-track-end-vol = <4465000>;
+                fullbatt-track-end-cur = <130000>;
+                first-calib-voltage = <3622000>;
+                first-calib-capacity = <40>;
+
+                ir-cv-offset-microvolt = <100000>;
+                ir-rc-micro-ohms = <20000>;
+                ir-us-upper-limit-microvolt = <4520000>;
+                comp-resistance-mohm = <7>;
+
+                ocv-capacity-celsius = <25>;
+                ocv-capacity-table-0 = <4459000 100>, <4396000 95>, <4339000 90>,
+							<4277000 85>, <4214000 80>, <4155000 75>,
+ 							<4098000 70>, <4044000 65>, <3995000 60>,
+							<3940000 55>, <3886000 50>, <3854000 45>,
+							<3829000 40>, <3809000 35>, <3794000 30>,
+							<3778000 25>, <3757000 20>, <3736000 15>,
+							<3701000 10>, <3684000 5>, <3400000 0>;
+				voltage-temp-table = <958266 600>, <917838 650>, <872102 700>, <821932 750>,
+							<768436 800>, <713168 850>, <657516 900>,
+							<602736 950>, <550404 1000>, <501636 1050>,
+							<456864 1100>, <416390 1150>, <380379 1200>,
+							<348695 1250>, <320955 1300>, <296950 1350>,
+							<276277 1400>, <258473 1450>, <243213 1500>,
+							<230162 1550>, <219004 1600>, <209615 1650>,
+							<201601 1700>, <194717 1750>, <188820 1800>,
+							<183777 1850>, <179442 1900>, <175681 1950>;
+                capacity-temp-table = <50 100>, <25 100>, <10 99>, <0 94>, <(-10) 87>;
+                resistance-temp-table = <50 84>, <25 100>, <10 150>, <0 873>, <(-10) 1057>;
+
+                charge-sdp-current-microamp = <500000 500000>;
+                charge-dcp-current-microamp = <2000000 3000000>;
+                charge-cdp-current-microamp = <1500000 1500000>;
+                charge-unknown-current-microamp = <1000000 1000000>;
+                charge-fchg-current-microamp = <3000000 2000000>;
+                charge-flash-current-microamp = <4900000 2700000>;
+                charge-wl-bpp-current-microamp = <1000000 1000000>;
+                charge-wl-epp-current-microamp = <2000000 1000000>;
+
+                cap-calib-energy-density-ocv-table = <3350000 3800000>, <4150000 4350000>;
+                cap-track-energy-density-ocv-table = <3400000 3722000>;
+                dcp-jeita-temp-table = <1000 1030 0 4480000>, <1150 1180 700000 4480000>,
+                    <1450 1420 2000000 4480000>, <1600 1570 700000 4100000>;
+                sdp-jeita-temp-table = <1000 1030 0 4480000>, <1150 1180 500000 4480000>,
+                    <1450 1420 500000 4480000>, <1600 1570 500000 4100000>;
+                cdp-jeita-temp-table = <1000 1030 0 4480000>, <1150 1180 700000 4480000>,
+                    <1450 1420 1500000 4480000>, <1600 1570 700000 4100000>;
+                unknown-jeita-temp-table = <1000 1030 0 4480000>, <1150 1180 700000 4480000>,
+                    <1450 1420 1000000 4480000>, <1600 1570 700000 4100000>;
+                fchg-jeita-temp-table = <1000 1030 0 4480000>, <1150 1180 700000 4480000>,
+                    <1450 1420 3250000 4480000>, <1600 1570 700000 4100000>;
+                flash-jeita-temp-table = <1000 1030 0 4480000>, <1150 1180 1000000 4480000>,
+                    <1450 1420 5000000 4480000>, <1600 1570 1000000 4100000>;
+                wl-bpp-jeita-temp-table = <1000 1030 0 4480000>, <1150 1180 500000 4480000>,
+                    <1450 1420 1000000 4480000>, <1600 1570 5000000 4100000>;
+                wl-epp-jeita-temp-table = <1000 1030 0 4480000>, <1150 1180 500000 4480000>,
+                    <1450 1420 2000000 4480000>, <1600 1570 500000 4100000>;
+			};
+		};
+	};
+};

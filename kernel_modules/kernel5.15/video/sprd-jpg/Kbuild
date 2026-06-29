@@ -1,0 +1,24 @@
+#SPDX-FileCopyrightText: 2019 Unisoc (Shanghai) Technologies Co.Ltd
+#SPDX-License-Identifier: GPL-2.0-only
+#
+# Configurations
+#
+CONFIG_UNISOC_JPG := m
+
+#
+# Source List
+#
+jpg-y := \
+	sprd_jpg.o\
+	sprd_jpg_common.o
+
+#
+# Build Options
+#
+
+KO_MODULE_PATH := $(src)
+ccflags-y += -I$(KO_MODULE_PATH)/../../../common/camera/power/kernel/
+#
+# Final Objects
+#
+obj-$(CONFIG_UNISOC_JPG) := jpg.o

@@ -1,0 +1,190 @@
+/*
+ * R61350 Truly LCD config dtsi file for spreadtrum
+ *
+ * Copyright (C) 2018, Spreadtrum Communications Inc.
+ *
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ */
+
+/ {
+	fragment {
+		target-path = "/";
+		__overlay__ {
+			lcds {
+				lcd_td4160b_dsjm_boe_mipi_hd: lcd_td4160b_dsjm_boe_mipi_hd {
+
+					sprd,dsi-work-mode = <1>; /* video burst mode*/
+					sprd,dsi-lane-number = <4>;
+					sprd,dsi-color-format = "rgb888";
+
+					sprd,phy-bit-clock = <1110000>;	/* kbps */
+					sprd,phy-escape-clock = <20000>;/* kHz */
+					sprd,dpi-clk-div = <6>;
+					sprd,video-lp-cmd-enable = <1>;
+					sprd,hporch-lp-disable = <1>;
+
+					sprd,width-mm = <0x45>;
+					sprd,height-mm = <0x9B>;
+
+					sprd,low-brightness = <1>;
+
+					sprd,esd-check-enable = <1>;
+					sprd,esd-check-mode = <1>;
+					sprd,esd-check-period = <5000>;
+					//sprd,esd-check-register = <0x0A>;
+					//sprd,esd-check-value = <0x9C>;
+
+					sprd,power-i2c-bus = <4>;
+					sprd,power-i2c-addr = <0x3e>;
+					sprd,power-i2c-reg = [00 01 03];
+					sprd,power-i2c-val = [14 14 03];
+
+					sprd,reset-on-sequence = <1 5>, <0 5>, <1 30>;
+					sprd,reset-off-sequence = <0 5>;
+
+					sprd,ovt-tp-aod-support = <1>;
+					sprd,ovt-tp-reset-gpio = <1>;
+					/*
+					 * Use 4 bits number for descripting video lp mode, and it can be combined used.
+					 * BIT(0): allow vactive enter lp;
+					 * BIT(1): allow vfp enter lp;
+					 * BIT(2): allow vbp enter lp;
+					 * BIT(3): allow vsa enter lp;
+					 * For example:
+					 * If we need vfp & vbp enter lp, we can calculate this value as a result of BIT(1) | BIT(2)
+					 * And we get the result of 3 and set this value to lcd dt property sprd,video-lp-en-mode.
+					 * If we need all stage can enter lp, we can calculate this value as a result of BIT(0) | BIT(1) | BIT(2) | BIT(3).
+					 * And we get the result of 15 and set this value to lcd dt property sprd,video-lp-en-mode.
+					 */
+					sprd,video-lp-en-mode = <2>;
+					sprd,use-dcs-write;
+					sprd,initial-command = [
+					29 00 00 02 B0 00
+					29 00 00 07 B6 30 6b 00 86 c3 03
+					29 00 00 05 B7 31 00 00 00
+                                        29 00 00 07 B8 06 90 09 00 0b 00
+                                        29 00 00 07 B9 06 90 09 00 0b 00
+					29 00 00 07 BA 06 90 09 00 0b 00
+					29 00 00 04 BB 00 b4 a0
+					29 00 00 04 BC 00 b4 a0
+					29 00 00 04 BD 00 b4 a0
+					29 00 00 0E BE 07 00 00 00 00 00 00 00 00 00 00 00 00
+					29 00 00 19 C0 00 45 24 06 44 00 0a 06 94 00 70 00 00 00 00 00 00 00 00 00 00 00 00 00
+					29 00 00 28 C1 30 11 50 fa 01 00 00 10 00 00 00 00 40 0f 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+					29 00 00 F5 C2 03 90 39 12 09 10 13 12 00 03 90 39 12 09 10 0f 11 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03 90 32 10 10 08 05 c1 00 f0 01 00 00 00 08 00 00 00 00 11 00 f0 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 11 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 11 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 11 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 10 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 00 00 00 00 00 00 00 00 00 00 02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+					29 00 00 6A C3 03 90 39 c1 01 40 09 00 00 00 20 00 00 00 00 01 00 00 00 00 00 00 23 00 00 60 48 c1 01 30 09 00 00 00 22 00 03 90 39 c1 01 40 09 00 00 00 20 00 00 00 00 08 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+					29 00 00 55 C4 00 00 67 61 03 07 13 15 17 19 1B 1D 1F 21 60 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 60 22 20 1E 1C 1A 18 16 14 08 04 61 67 00 00 00 00 00 00 00 E0 1F 00 80 7F 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 55 55 55 55 55 55 55 55 55 55 55
+					29 00 00 06 C5 08 00 00 00 00
+					29 00 00 4D C6 00 00 00 00 01 22 04 22 01 00 46 00 00 00 01 00 46 00 01 05 01 0b 01 35 ff 0f 06 c5 02 c0 0f 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 20 20 00 00 00 c0 11 00 00 00 10 10 00 00 00 01 00 50 00 33 03 00 00
+					29 00 00 1F CB 02 d0 01 80 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 40 70 00 00 00 00 00 ff
+					29 00 00 19 CE 16 10 42 4b 4e 5c 60 62 7f 8b 9f af b6 ba bf c4 c9 0b 4f 04 04 00 04 8c
+					29 00 00 02 CF 02
+					29 00 00 15 D0 c1 46 81 66 09 90 00 d5 92 9f 11 46 06 7e 09 08 dc 1b f0 06
+					29 00 00 26 D1 d4 d4 1b 33 33 17 07 bb 55 55 55 55 00 3b 77 07 3b 30 06 72 33 13 00 d7 0c 55 02 00 18 70 18 77 11 11 11 20 20
+					29 00 00 04 D2 12 00 00
+					29 00 00 9A D3 00 00 00 00 00 00 00 00 00 ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff ff f7 ff
+					29 00 00 18 D4 00 00 00 00 00 00 00 00 00 20 00 00 00 00 20 00 00 00 00 00 00 00 00
+					29 00 00 2F D7 01 00 12 12 00 45 00 18 00 45 00 18 03 83 80 85 85 85 87 84 45 86 87 80 88 86 89 83 83 87 84 88 8a 0c 0b 0a 0a 0a 07 07 06 06 00 08 0a 0a
+					29 00 00 17 D8 40 99 26 ed 16 6c 16 6c 16 6c 00 14 00 14 00 14 01 0c 00 00 01 00
+					29 00 00 29 D9 00 02 7f 00 00 00 00 00 00 00 00 00 00 00 00 c0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+					29 00 00 05 DD 30 06 23 65
+					29 00 00 0F DE 00 00 00 0f ff 00 00 00 00 10 00 00 00 00
+					29 00 00 09 E6 00 00 00 00 00 00 00 00
+					29 00 00 24 EA 02 07 07 04 80 10 01 00 00 00 00 03 23 00 07 00 ed 00 ed 00 ed 01 28 01 28 00 47 00 47 00 47 01 0f 01 00
+					29 00 00 09 EB 09 90 99 00 01 00 00 00
+					29 00 00 18 EC 02 d0 01 70 73 10 01 00 00 00 00 02 2a 00 00 00 00 00 00 00 00 00 00
+					29 00 00 22 ED 01 02 00 00 00 00 00 00 67 37 0b 00 00 00 00 00 00 00 00 00 00 00 02 b0 00 00 00 00 00 00 40 10 00
+					29 00 00 7A EE 05 40 15 00 c0 3f 00 c0 3f 00 00 03 00 00 03 00 c0 3f 00 00 00 00 00 00 03 00 00 00 00 00 00 03 00 00 00 00 00 00 03 00 00 00 00 00 00 03 40 c0 3f 00 00 00 00 00 c0 3f 00 00 00 00 00 c0 3f 00 00 00 00 05 d5 3f 00 00 00 00 00 00 03 00 00 03 00 00 03 00 00 03 00 00 03 00 00 03 00 00 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02
+					29 00 00 02 B0 03
+					29 00 00 02 B0 04
+					29 00 00 02 B0 00
+					39 00 00 04 F0 C1 01 81
+					29 00 00 02 D6 00
+					//39 00 00 02 51 07 FF
+					39 00 00 02 35 00
+					39 00 00 02 53 24
+					39 00 00 02 55 00
+					29 00 00 02 B0 03
+					29 00 00 02 B0 04
+					29 00 00 03 C0 00 43
+					29 00 00 09 E6 07 00 04 19 50 00 00 00
+					29 00 00 02 B0 00
+					29 00 00 02 D6 00
+					29 00 00 02 B0 03
+					05 60 00 01 29
+					05 20 00 01 11
+						];
+
+					sprd,sleep-in-command = [
+						05 14 00 01 28
+						05 78 00 01 10
+						];
+
+					sprd,sleep-out-command = [
+						05 14 00 01 11
+						05 78 00 01 29
+						];
+
+					sprd,cabc-off-command = [
+						39 00 00 02 55 03
+						];
+					sprd,cabc-ui-command = [
+						39 00 00 02 55 13
+						];
+					sprd,cabc-still-command = [
+						39 00 00 02 55 23
+						];
+					sprd,cabc-moving-command = [
+						39 00 00 02 55 33
+						];
+
+					display-timings {
+						native-mode = <&td4160b_dsjm_boe_timing0>;
+
+						td4160b_dsjm_boe_timing0: timing0 {
+							clock-frequency = <185000000>;
+							hactive = <720>;
+							vactive = <1604>;
+							hback-porch = <180>;
+							hfront-porch = <218>;
+							vback-porch = <32>;
+							vfront-porch = <982>;
+							hsync-len = <58>;
+							vsync-len = <4>;
+						};
+						td4160b_dsjm_boe_timing1: timing1 {
+							clock-frequency = <185000000>;
+							hactive = <720>;
+							vactive = <1604>;
+							hback-porch = <26>;
+							hfront-porch = <96>;
+							vback-porch = <32>;
+							vfront-porch = <772>;
+							hsync-len = <10>;
+							vsync-len = <4>;
+						};
+						td4160b_dsjm_boe_timing2: timing2 {
+							clock-frequency = <185000000>;
+							hactive = <720>;
+							vactive = <1604>;
+							hback-porch = <26>;
+							hfront-porch = <96>;
+							vback-porch = <32>;
+							vfront-porch = <170>;
+							hsync-len = <10>;
+							vsync-len = <4>;
+						};
+					};
+
+					oled-backlight {
+						default-brightness = <1306>;
+						sprd,max-level = <4095>;
+						brightness-levels = [
+							39 00 00 03 51 00 00
+						];
+					};
+				};
+			};
+		};
+	};
+};

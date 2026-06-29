@@ -1,0 +1,1 @@
+obj-$(CONFIG_LUX_HARDWARE_INFO) += hardware_info_lux.o

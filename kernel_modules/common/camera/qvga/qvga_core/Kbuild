@@ -1,0 +1,23 @@
+#
+# sprd_qvga_drv.ko
+#
+# Kbuild: for kernel building external module
+#
+# Note:
+# - Please refer to modules/sample/Kbuild to find out what should be
+#   done is this Kbuild file
+#
+
+#KO_MODULE_NAME := sprd_qvga_drv
+#KO_MODULE_PATH := $(src)
+#KO_MODULE_SRC  :=
+
+#KO_MODULE_SRC += $(KO_MODULE_PATH)/qvga_core.c
+
+#ccflags-y += -I$(KO_MODULE_PATH)
+
+#ccflags-y += -DMCLK_NEW_PROCESS
+
+#obj-m := $(KO_MODULE_NAME).o
+#EXTRA_CFLAGS += -I$(KO_MODULE_PATH)/../../power/kernel
+#$(KO_MODULE_NAME)-y := $(patsubst $(src)/%.c,%.o,$(KO_MODULE_SRC))

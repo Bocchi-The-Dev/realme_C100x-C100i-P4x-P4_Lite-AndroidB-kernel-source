@@ -1,0 +1,27 @@
+#
+# qvga_ic_ov8856_shine.ko
+#
+# Kbuild: for kernel building external module
+#
+# Note:
+# - Please refer to modules/sample/Kbuild to find out what should be
+#   done is this Kbuild file
+#
+
+#KO_MODULE_NAME := qvga_ic_ov8856_shine
+#KO_MODULE_PATH := $(src)
+#KO_MODULE_SRC  :=
+
+#KO_MODULE_SRC += \
+#    $(KO_MODULE_PATH)/qvga_ov8856_shine_drv.c \
+#    $(KO_MODULE_PATH)/../qvga_drv/qvga_drv.c
+
+#ccflags-y += -I$(KO_MODULE_PATH)
+#ccflags-y += -I$(KO_MODULE_PATH)/../qvga_drv
+#ccflags-y += -I$(KO_MODULE_PATH)/../qvga_core
+
+
+#ccflags-y += -DMCLK_NEW_PROCESS
+
+#obj-m := $(KO_MODULE_NAME).o
+#$(KO_MODULE_NAME)-y := $(patsubst $(src)/%.c,%.o,$(KO_MODULE_SRC))

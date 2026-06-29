@@ -1,0 +1,103 @@
+FourSemi Amp platform driver
+
+Required properties:
+
+- compatible : should be one of the following
+  - "foursemi,frsm-amp"
+
+Optional properties:
+
+- frsm,amp-ndev :
+  Specify the count of pa devices
+
+- frsm,has-tx-vi : For NON-DSP Smart PA solution
+  Comunicate with adsp in kernel driver(QCOM Elite, MTK open-dsp)
+  if no need it(such as qcom audio reach), disable it
+
+- frsm,has-rx-spc : For SPC PA solution
+  Comunicate with adsp in kernel driver(QCOM Elite, MTK open-dsp)
+  if no need it(such as QCOM AudioReach), disable it
+
+- frsm,mntr-enable :
+  Enable monitor for battery protection
+
+- frsm,mntr-period :
+  Specify period of delay work monitor, units(ms)
+
+- frsm,mntr-avg-count :
+  Specify average count of battery monitor
+
+- frsm,misc-enable :
+  Register misc device /dev/fs16xx
+  For fstool and hal layer controlling(calibration)
+
+- frsm,class-enable :
+  Register class device: /sys/class/frsm_amp/*
+  For adb/hal layer controlling(calibration)
+
+Example:
+
+/* QCOM Elite/MTK with-dsp smartpa */
+&soc {
+	frsm_amp {
+		compatible = "foursemi,frsm-amp";
+		frsm,amp-ndev = <1>;
+		frsm,class-enable;
+		frsm,mntr-enable;
+		frsm,mntr-period = <2000>;
+		frsm,mntr-avg-count = <5>;
+		status = "ok";
+	};
+};
+
+/* QCOM Elite/MTK non-dsp smartpa */
+&soc {
+	frsm_amp {
+		compatible = "foursemi,frsm-amp";
+		frsm,amp-ndev = <1>;
+		frsm,has-tx-vi;
+		frsm,class-enable;
+		frsm,mntr-enable;
+		frsm,mntr-period = <2000>;
+		frsm,mntr-avg-count = <5>;
+		status = "ok";
+	};
+};
+
+/* QCOM AudioReach dsp/nondsp smartpa */
+&soc {
+	frsm_amp {
+		compatible = "foursemi,frsm-amp";
+		frsm,amp-ndev = <1>;
+		frsm,class-enable;
+		frsm,mntr-enable;
+		frsm,mntr-period = <2000>;
+		frsm,mntr-avg-count = <5>;
+		status = "ok";
+	};
+};
+
+/* QCOM Elite/MTK SPC PA */
+&soc {
+	frsm_amp {
+		compatible = "foursemi,frsm-amp";
+		frsm,amp-ndev = <1>;
+		frsm,has-rx-spc;
+		frsm,class-enable;
+		frsm,mntr-enable;
+		frsm,mntr-period = <2000>;
+		frsm,mntr-avg-count = <5>;
+		status = "ok";
+	};
+};
+
+/* QCOM AudioReach SPC PA */
+&soc {
+	frsm_amp {
+		compatible = "foursemi,frsm-amp";
+		frsm,amp-ndev = <1>;
+		frsm,class-enable;
+		status = "ok";
+	};
+};
+

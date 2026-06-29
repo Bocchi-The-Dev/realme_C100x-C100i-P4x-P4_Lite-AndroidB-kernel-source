@@ -1,0 +1,35 @@
+#
+# SPDX-FileCopyrightText: 2021-2023 Unisoc (Shanghai) Technologies Co. Ltd
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# unisoc_gnss_pmnotify_ctl.ko
+#
+# Kbuild: for kernel building external module
+#
+# Note:
+# - Please refer to modules/sample/Kbuild to find out what should be
+#   done is this Kbuild file
+#
+
+#
+# Source List
+#
+KO_MODULE_NAME := unisoc_gnss_pmnotify_ctl
+
+ifeq ($(strip $(BSP_KERNEL_VERSION)),kernel5.15)
+KO_MODULE_PATH := $(src)
+else
+KO_MODULE_PATH := $(srctree)/$(src)
+endif
+
+ccflags-y += -I$(KO_MODULE_PATH)
+
+#
+# Final Objects
+#
+obj-m := $(KO_MODULE_NAME).o
+
+UNISOC_GNSS_PMNOTIFY_CTL := gnss_pmnotify_ctl.o
+
+$(KO_MODULE_NAME)-y += $(UNISOC_GNSS_PMNOTIFY_CTL)
+

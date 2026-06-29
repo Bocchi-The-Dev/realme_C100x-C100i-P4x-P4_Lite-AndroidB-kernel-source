@@ -1,0 +1,165 @@
+/*
+ * R61350 Truly LCD config dtsi file for spreadtrum
+ *
+ * Copyright (C) 2018, Spreadtrum Communications Inc.
+ *
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ */
+
+/ {
+	fragment {
+		target-path = "/";
+		__overlay__ {
+			lcds {
+				lcd_jd9365tg_ld_inx_mipi_hd: lcd_jd9365tg_ld_inx_mipi_hd {
+
+					sprd,dsi-work-mode = <1>; /* video burst mode*/
+					sprd,dsi-lane-number = <4>;
+					sprd,dsi-color-format = "rgb888";
+
+					sprd,phy-bit-clock = <1008000>;	/* kbps */
+					sprd,phy-escape-clock = <20000>;/* kHz */
+					sprd,dpi-clk-div = <6>;
+					sprd,video-lp-cmd-enable = <1>;
+					sprd,hporch-lp-disable = <1>;
+
+					sprd,width-mm = <0x47>;
+					sprd,height-mm = <0x9C>;
+					sprd,esd-check-enable = <1>;
+					sprd,esd-check-mode = <0>;
+					sprd,esd-check-period = <2000>;
+					sprd,esd-check-register = <0x0A>;
+					sprd,esd-check-value = <0x1C>;
+
+					sprd,power-i2c-bus = <4>;
+					sprd,power-i2c-addr = <0x3e>;
+					sprd,power-i2c-reg = [00 01 03];
+					sprd,power-i2c-val = [12 12 43];
+
+					sprd,reset-on-sequence = <1 5>, <0 5>, <1 5>;
+					sprd,reset-off-sequence = <0 5>;
+					/*
+					 * Use 4 bits number for descripting video lp mode, and it can be combined used.
+					 * BIT(0): allow vactive enter lp;
+					 * BIT(1): allow vfp enter lp;
+					 * BIT(2): allow vbp enter lp;
+					 * BIT(3): allow vsa enter lp;
+					 * For example:
+					 * If we need vfp & vbp enter lp, we can calculate this value as a result of BIT(1) | BIT(2)
+					 * And we get the result of 3 and set this value to lcd dt property sprd,video-lp-en-mode.
+					 * If we need all stage can enter lp, we can calculate this value as a result of BIT(0) | BIT(1) | BIT(2) | BIT(3).
+					 * And we get the result of 15 and set this value to lcd dt property sprd,video-lp-en-mode.
+					 */
+					sprd,video-lp-en-mode = <2>;
+					sprd,use-dcs-write;
+					sprd,initial-command = [
+					39 00 00 04 DF 93 89 1C 
+					39 00 00 02 DE 00 
+					39 00 00 08 B2 01 23 60 88 24 5A 07 
+					39 00 00 08 BB 02 12 33 50 5A 44 44 
+					39 00 00 03 BD 00 7E 
+					39 00 00 03 BF 46 5A 
+					39 00 00 05 C0 00 AD 00 AD 
+					39 00 00 2B CB 7F 7A 75 6C 63 65 58 5F 49 61 5C 57 6E 56 59 48 41 33 21 19 06 7F 7A 75 6C 63 65 58 5F 49 61 5C 57 6E 56 59 48 41 33 21 19 06 
+					39 00 00 1A C3 3B 01 00 03 09 09 4B 06 4C 06 4C 02 48 02 48 02 48 07 4A 07 0A 07 0A 07 0A 
+					39 00 00 19 C4 01 00 03 09 09 4B 06 4C 06 4C 02 48 02 48 02 48 07 4A 07 0A 07 0A 07 0A 
+					39 00 00 18 C5 03 03 09 09 4B 06 4C 06 4C 02 48 02 48 02 48 07 4A 07 0A 07 0A 07 0A 
+					39 00 00 18 C6 00 5D 00 46 00 C9 50 82 00 00 00 01 00 01 00 00 00 00 00 00 00 00 01 
+					39 00 00 04 C8 30 20 5A 
+					39 00 00 02 CC 33 
+					39 00 00 03 CD 04 02 
+					39 00 00 18 CE 00 00 0C 0C 0C FC 0F 0C 0C 0C 0C 0C 0C 0C 0C 0C 0C 0C 00 00 00 00 00 
+					39 00 00 34 CF 00 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 FF FF FF FF FF 3F 
+					39 00 00 1E D0 00 1F 1F 12 10 17 17 04 06 08 0A 0C 0E 19 1B 00 1F 1F 1F 1F 1F 1F 1F 00 00 3F FF FF FF 
+					39 00 00 1E D1 00 1F 1F 13 11 17 17 05 07 09 0B 0D 0F 1A 1C 01 1F 1F 1F 1F 1F 1F 1F 00 00 3F FF FF FF 
+					39 00 00 18 D2 00 1F 1F 13 01 17 17 1C 1A 0F 0D 0B 09 07 05 11 1F 1F 1F 1F 1F 1F 1F 
+					39 00 00 18 D3 00 1F 1F 12 00 17 17 1B 19 0E 0C 0A 08 06 04 10 1F 1F 1F 1F 1F 1F 1F 
+					39 00 00 59 D4 00 20 C3 00 16 00 18 00 00 00 00 00 00 00 00 00 00 03 03 03 00 83 07 07 07 0C 00 00 00 00 00 00 00 00 00 00 00 03 03 03 03 03 03 00 86 40 06 07 03 03 00 80 AF 00 06 06 5B 06 55 00 00 00 00 00 00 00 00 02 00 00 00 00 00 00 00 00 00 00 00 40 00 00 03 00 00 20 00 00 
+					39 00 00 3F D5 02 10 01 00 00 00 00 00 00 E0 00 00 00 07 32 5A 00 08 01 00 C0 07 0B F4 00 C6 00 10 00 71 20 04 10 04 06 00 00 00 00 00 00 00 00 00 00 00 00 1F FF 00 00 00 1F FF 00 FF FF FF FF FF FF 00 
+					39 00 00 10 D7 00 02 32 02 32 02 32 02 32 02 32 02 32 02 32 
+					39 00 00 02 DE 01 
+					39 00 00 06 B5 64 00 00 00 00 
+					39 00 00 07 C7 15 14 0E 0E 0E 0E 
+					39 00 00 06 BE 01 7C 82 26 BF 
+					39 00 00 02 DE 02 
+					39 00 00 03 B7 44 80 
+					39 00 00 02 BD 1B 
+					39 00 00 03 C6 4E 00 
+					39 00 00 06 C4 00 11 0F 80 10 
+					39 00 00 02 E5 00 
+					39 00 00 04 E6 10 10 FF 
+					39 00 00 0F EC 07 07 40 00 22 02 00 FF 08 7C 00 00 00 00 
+					39 00 00 02 DE 03 
+					39 00 00 03 D0 00 65 
+					39 00 00 06 D1 00 00 21 FF 80 
+					39 00 00 02 DE 00 
+					39 00 00 03 51 07 88  
+					39 00 00 02 53 2C  
+					39 00 00 02 35 00
+					05 78 00 01 11
+					05 01 00 01 29
+					];
+
+					sprd,sleep-in-command = [
+					05 14 00 01 28
+					05 78 00 01 10
+					];
+
+					sprd,sleep-out-command = [
+						05 78 00 01 11
+						05 14 00 01 29
+						];
+
+					sprd,cabc-off-command = [
+						23 00 00 02 55 00
+						];
+					sprd,cabc-ui-command = [
+						23 00 00 02 55 01
+						];
+					sprd,cabc-still-command = [
+						23 00 00 02 55 02
+						];
+					sprd,cabc-moving-command = [
+						23 00 00 02 55 03
+						];
+
+
+					display-timings {
+						native-mode = <&jd9365tg_ld_inx_timing0>;
+
+						jd9365tg_ld_inx_timing0: timing0 {
+							clock-frequency = <168000000>;
+							hactive = <720>;
+							vactive = <1600>;
+							hback-porch = <128>;
+							hfront-porch = <100>;
+							vback-porch = <248>;
+							vfront-porch = <1001>;
+							hsync-len = <32>;
+							vsync-len = <6>;
+						};
+						jd9365tg_ld_inx_timing1: timing1 {
+							clock-frequency = <168000000>;
+							hactive = <720>;
+							vactive = <1600>;
+							hback-porch = <100>;
+							hfront-porch = <100>;
+							vback-porch = <248>;
+							vfront-porch = <106>;
+							hsync-len = <32>;
+							vsync-len = <6>;
+						};
+					};
+
+					oled-backlight {
+						default-brightness = <1306>;
+						sprd,max-level = <4095>;
+						brightness-levels = [
+						39 00 00 03 51 0F FF
+						];
+					};
+				};
+			};
+		};
+	};
+};

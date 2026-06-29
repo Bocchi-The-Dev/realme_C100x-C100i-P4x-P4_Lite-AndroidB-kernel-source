@@ -1,0 +1,346 @@
+#SPDX-FileCopyrightText: 2020 Unisoc (Shanghai) Technologies Co.Ltd
+#SPDX-License-Identifier: GPL-2.0-only
+#
+# Configurations
+#
+ifeq ($(BSP_MODULE_DISP_VERSION),sp7731e)
+CONFIG_UNISOC_DISP := m
+CONFIG_DRM_SPRD_DPU0 := y
+CONFIG_DRM_SPRD_DSI := y
+CONFIG_DRM_SPRD_DUMMY := n
+CONFIG_DRM_SPRD_WB_DEBUG := n
+CONFIG_UNISOC_GSP := m
+CONFIG_DRM_SPRD_PERF_DISPC := n
+CONFIG_DRM_SPRD_PERF_DUMMY := n
+endif
+
+ifeq ($(BSP_MODULE_DISP_VERSION),sp9832e)
+CONFIG_UNISOC_DISP := m
+CONFIG_DRM_SPRD_DPU0 := y
+CONFIG_DRM_SPRD_DSI := y
+CONFIG_DRM_SPRD_DUMMY := n
+CONFIG_DRM_SPRD_WB_DEBUG := n
+CONFIG_UNISOC_GSP := m
+CONFIG_DRM_SPRD_PERF_DISPC := n
+CONFIG_DRM_SPRD_PERF_DUMMY := n
+endif
+
+ifeq ($(BSP_MODULE_DISP_VERSION),s9863a)
+CONFIG_UNISOC_DISP := m
+CONFIG_DRM_SPRD_DPU0 := y
+CONFIG_DRM_SPRD_DSI := y
+CONFIG_DRM_SPRD_DUMMY := n
+CONFIG_DRM_SPRD_WB_DEBUG := n
+CONFIG_UNISOC_GSP := m
+CONFIG_DRM_SPRD_PERF_DISPC := n
+CONFIG_DRM_SPRD_PERF_DUMMY := n
+endif
+
+ifeq ($(BSP_MODULE_DISP_VERSION),ums312)
+CONFIG_UNISOC_DISP := m
+CONFIG_DRM_SPRD_DPU0 := y
+CONFIG_DRM_SPRD_DSI := y
+CONFIG_DRM_SPRD_DUMMY := n
+CONFIG_DRM_SPRD_WB_DEBUG := n
+CONFIG_UNISOC_GSP := m
+CONFIG_DRM_SPRD_PERF_DISPC := n
+CONFIG_DRM_SPRD_PERF_DUMMY := n
+endif
+
+ifeq ($(BSP_MODULE_DISP_VERSION),ums512)
+CONFIG_UNISOC_DISP := m
+CONFIG_DRM_SPRD_DPU0 := y
+CONFIG_DRM_SPRD_DSI := y
+CONFIG_DRM_SPRD_DUMMY := n
+CONFIG_DRM_SPRD_WB_DEBUG := n
+CONFIG_UNISOC_GSP := m
+CONFIG_DRM_SPRD_PERF_DISPC := n
+CONFIG_DRM_SPRD_PERF_DUMMY := n
+endif
+
+ifeq ($(BSP_MODULE_DISP_VERSION),ums9230)
+CONFIG_UNISOC_DISP := m
+CONFIG_DRM_SPRD_DPU0 := y
+CONFIG_DRM_SPRD_DSI := y
+CONFIG_DRM_SPRD_DUMMY := n
+CONFIG_DRM_SPRD_WB_DEBUG := n
+CONFIG_UNISOC_GSP := m
+CONFIG_DRM_SPRD_UMB9230S := y
+CONFIG_DRM_SPRD_SPI := n
+CONFIG_DRM_SPRD_CPU_FREQ := y
+CONFIG_DRM_SPRD_PERF_DISPC := n
+CONFIG_DRM_SPRD_PERF_DUMMY := n
+endif
+
+ifeq ($(BSP_MODULE_DISP_VERSION),ums9610)
+CONFIG_UNISOC_DISP := m
+CONFIG_DRM_SPRD_DPU0 := y
+CONFIG_DRM_SPRD_DSI := y
+CONFIG_DRM_SPRD_DUMMY := n
+CONFIG_DRM_SPRD_WB_DEBUG := n
+CONFIG_UNISOC_GSP := m
+CONFIG_DRM_SPRD_PERF_DISPC := n
+CONFIG_DRM_SPRD_PERF_DUMMY := n
+endif
+
+ifeq ($(BSP_MODULE_DISP_VERSION),ums9621)
+CONFIG_UNISOC_DISP := m
+CONFIG_DRM_SPRD_DPU0 := y
+CONFIG_DRM_SPRD_DSI := y
+CONFIG_DRM_SPRD_DUMMY := n
+CONFIG_DRM_SPRD_WB_DEBUG := n
+CONFIG_UNISOC_GSP := m
+CONFIG_DRM_SPRD_PERF_DISPC := n
+CONFIG_DRM_SPRD_PERF_DUMMY := n
+endif
+
+ifeq ($(BSP_MODULE_DISP_VERSION),ums9620)
+CONFIG_UNISOC_DISP := m
+CONFIG_DRM_SPRD_DPU0 := y
+CONFIG_DRM_SPRD_DP := y
+CONFIG_DRM_SPRD_DPU1 := y
+CONFIG_DRM_SPRD_DSI := y
+CONFIG_DRM_SPRD_DUMMY := n
+CONFIG_DRM_SPRD_WB_DEBUG := n
+CONFIG_UNISOC_GSP := m
+CONFIG_DRM_SPRD_PERF_DISPC := n
+CONFIG_DRM_SPRD_PERF_DUMMY := n
+endif
+
+
+#
+# Build Options
+#
+ccflags-y := \
+	-I$(srctree)/include/linux \
+	-I$(srctree)/drivers/staging/android \
+	-I$(src)
+
+subdir-ccflags-y += -I$(srctree)/drivers/devfreq/apsys/
+
+#
+# Conditional Compilation
+#
+
+#def perf dpu use true dpu driver
+ifeq ($(CONFIG_DRM_SPRD_PERF_DISPC), y)
+
+ccflags-y += -DCONFIG_DRM_SPRD_PERF_DISPC=$(CONFIG_DRM_SPRD_PERF_DISPC)
+
+#
+# Source List: true dpu and connector
+#
+
+sprd-drm-y := \
+	disp_lib.o \
+	sprd_drm.o \
+	sprd_gem.o \
+	sprd_plane.o
+
+ifneq ($(CONFIG_UNISOC_DISP),n)
+    ccflags-y += -DCONFIG_UNISOC_DISP=$(CONFIG_UNISOC_DISP)
+endif
+
+ifeq ($(CONFIG_DRM_SPRD_DPU0),y)
+	sprd-drm-y += \
+		sprd_crtc.o \
+		sprd_perf_connector.o\
+		qogirn6pro/perf_global_dpu.o \
+		sysfs/sysfs_class.o \
+		sysfs/sysfs_dpu.o \
+		sprd_perf_dpu.o \
+		dpu/perf_dpu_r6p0.o
+    ccflags-y += -DCONFIG_DRM_SPRD_DPU0=$(CONFIG_DRM_SPRD_DPU0)
+endif
+
+ifeq ($(CONFIG_DRM_SPRD_WB_DEBUG),y)
+ifeq ($(TARGET_BUILD_VARIANT),userdebug)
+    ccflags-y += -DCONFIG_DRM_SPRD_WB_DEBUG=$(CONFIG_DRM_SPRD_WB_DEBUG)
+endif
+endif
+
+ifneq ($(CONFIG_UNISOC_GSP),n)
+    ccflags-y += -DCONFIG_UNISOC_GSP=$(CONFIG_UNISOC_GSP)
+endif
+
+
+ifeq ($(CONFIG_COMPAT),y)
+    sprd-drm-y += sprd_ioc32.o
+endif
+
+ifneq ($(CONFIG_TRUSTY_VIRTIO_IPC),n)
+    sprd-drm-y += disp_trusty.o
+endif
+
+include $(INCLUDE_SUBDIR)
+
+#
+# Final Objects
+#
+obj-$(CONFIG_UNISOC_DISP) := sprd-drm.o
+
+else
+
+ifeq ($(CONFIG_DRM_SPRD_PERF_DUMMY), y)
+#check define dummy crtc & panel maro to use whole dummy driver
+
+ccflags-y += -DCONFIG_DRM_SPRD_PERF_DUMMY=$(CONFIG_DRM_SPRD_PERF_DUMMY)
+
+#
+# Source List: dummy crtc and connector
+#
+
+sprd-drm-y := \
+	disp_lib.o \
+	sprd_drm.o \
+	sprd_gem.o \
+	sprd_plane.o
+
+ifneq ($(CONFIG_UNISOC_DISP),n)
+    ccflags-y += -DCONFIG_UNISOC_DISP=$(CONFIG_UNISOC_DISP)
+endif
+
+ifeq ($(CONFIG_DRM_SPRD_DPU0),y)
+	sprd-drm-y += \
+		sysfs/sysfs_class.o \
+		sysfs/sysfs_dummy_crtc.o \
+		perf_dummy/sprd_perf_dummy_crtc.o \
+		perf_dummy/sprd_perf_dummy_connector.o
+    ccflags-y += -DCONFIG_DRM_SPRD_DPU0=$(CONFIG_DRM_SPRD_DPU0)
+endif
+
+ifneq ($(CONFIG_UNISOC_GSP),n)
+    ccflags-y += -DCONFIG_UNISOC_GSP=$(CONFIG_UNISOC_GSP)
+endif
+
+
+ifeq ($(CONFIG_COMPAT),y)
+    sprd-drm-y += sprd_ioc32.o
+endif
+
+ifneq ($(CONFIG_TRUSTY_VIRTIO_IPC),n)
+    sprd-drm-y += disp_trusty.o
+endif
+
+include $(INCLUDE_SUBDIR)
+
+#
+# Final Objects
+#
+obj-$(CONFIG_UNISOC_DISP) := sprd-drm.o
+
+else
+
+#
+# Source List: true display pipeline
+#
+sprd-drm-y := \
+	disp_lib.o \
+	sprd_drm.o \
+	sprd_dsc.o \
+	sprd_gem.o \
+	sprd_plane.o
+
+INCLUDE_SUBDIR = \
+	$(src)/pike2/Kbuild \
+	$(src)/qogirl6/Kbuild \
+	$(src)/qogirn6pro/Kbuild \
+	$(src)/qogirn6lite/Kbuild \
+	$(src)/sharkl3/Kbuild \
+	$(src)/sharkl5/Kbuild \
+	$(src)/sharkl5pro/Kbuild \
+	$(src)/sharkle/Kbuild \
+
+ifneq ($(CONFIG_UNISOC_DISP),n)
+    ccflags-y += -DCONFIG_UNISOC_DISP=$(CONFIG_UNISOC_DISP)
+endif
+
+ifeq ($(CONFIG_DRM_SPRD_DPU0),y)
+	sprd-drm-y += \
+		sprd_crtc.o \
+		sprd_dpu.o \
+		sprd_bl.o \
+		sprd_corner.o
+	INCLUDE_SUBDIR += \
+		$(src)/dpu/Kbuild \
+		$(src)/sysfs/Kbuild
+    ccflags-y += -DCONFIG_DRM_SPRD_DPU0=$(CONFIG_DRM_SPRD_DPU0)
+endif
+
+ifeq ($(CONFIG_DRM_SPRD_SPI),y)
+	sprd-drm-y += \
+		sprd_drm_spi.o \
+		sprd_spi_panel.o \
+		sprd_swdispc.o \
+		dpu/swdispc_core.o
+	ccflags-y += -DCONFIG_DRM_SPRD_SPI=$(CONFIG_DRM_SPRD_SPI)
+endif
+
+ifeq ($(CONFIG_DRM_SPRD_DP),y)
+	sprd-drm-y += \
+		sprd_dp.o \
+		qogirn6pro/global_dp.o
+	INCLUDE_SUBDIR += $(src)/dp/Kbuild
+    ccflags-y += -DCONFIG_DRM_SPRD_DP=$(CONFIG_DRM_SPRD_DP)
+endif
+
+ifeq ($(CONFIG_DRM_SPRD_DPU1),y)
+	sprd-drm-y += \
+		sprd_dpu1.o \
+		dpu/dpu_lite_r3p0.o \
+		qogirn6pro/global_dpu1.o
+    ccflags-y += -DCONFIG_DRM_SPRD_DPU1=$(CONFIG_DRM_SPRD_DPU1)
+endif
+
+ifeq ($(CONFIG_DRM_SPRD_DSI),y)
+	sprd-drm-y += \
+		sprd_dsi.o \
+		sprd_dphy.o \
+		sprd_dsi_panel.o
+	INCLUDE_SUBDIR += \
+		$(src)/dphy/Kbuild \
+		$(src)/dsi/Kbuild
+    ccflags-y += -DCONFIG_DRM_SPRD_DSI=$(CONFIG_DRM_SPRD_DSI)
+endif
+
+ifeq ($(CONFIG_DRM_SPRD_UMB9230S),y)
+    INCLUDE_SUBDIR += $(src)/umb9230s/Kbuild
+    ccflags-y += -DCONFIG_DRM_SPRD_UMB9230S=$(CONFIG_DRM_SPRD_UMB9230S)
+endif
+
+ifeq ($(CONFIG_DRM_SPRD_CPU_FREQ),y)
+    sprd-drm-y += sprd_cpufreq_control.o
+    ccflags-y += -DCONFIG_DRM_SPRD_CPU_FREQ=$(CONFIG_DRM_SPRD_CPU_FREQ)
+endif
+
+ifeq ($(CONFIG_DRM_SPRD_DUMMY),y)
+    INCLUDE_SUBDIR += $(src)/dummy/Kbuild
+    ccflags-y += -DCONFIG_DRM_SPRD_DUMMY=$(CONFIG_DRM_SPRD_DUMMY)
+endif
+
+ifeq ($(CONFIG_DRM_SPRD_WB_DEBUG),y)
+ifeq ($(TARGET_BUILD_VARIANT),userdebug)
+    ccflags-y += -DCONFIG_DRM_SPRD_WB_DEBUG=$(CONFIG_DRM_SPRD_WB_DEBUG)
+endif
+endif
+
+ifneq ($(CONFIG_UNISOC_GSP),n)
+    ccflags-y += -DCONFIG_UNISOC_GSP=$(CONFIG_UNISOC_GSP)
+endif
+
+ifneq ($(CONFIG_TRUSTY_VIRTIO_IPC),n)
+    sprd-drm-y += disp_trusty.o
+endif
+
+ifeq ($(CONFIG_COMPAT),y)
+    sprd-drm-y += sprd_ioc32.o
+endif
+
+include $(INCLUDE_SUBDIR)
+
+#
+# Final Objects
+#
+obj-$(CONFIG_UNISOC_DISP) := sprd-drm.o
+endif
+endif

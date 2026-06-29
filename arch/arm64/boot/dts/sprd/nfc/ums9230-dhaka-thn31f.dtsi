@@ -1,0 +1,28 @@
+/*ATL 68K*/
+/ {
+	nfc_chipset:nfc_chipset {
+		compatible = "oplus-nfc-chipset";
+		chipset-24761 = "THN31";
+		chipset-24768 = "THN31";
+		manifest = "/vendor/etc/vintf/manifest/nfc-service-tms.xml";
+	};
+};
+
+&i2c2 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+        nfc@0x0f {
+               status = "okay";
+               compatible = "tms,nfc";
+               reg = <0x28>;
+               clock-names = "tms_clk","source","enable";
+               clocks = <&aon_clk CLK_AUX0>, <&ext_26m>, <&aonapb_gate CLK_AUX0_EB>;
+               tms,device-name   = "tms_nfc";
+               tms,device-count  = <1>;
+               tms,irq-gpio      = <&ap_gpio 166 0>; //GPIO1_A0
+               tms,ven-gpio      = <&ap_gpio 134 0>; //GPIO1_A1
+               tms,download-gpio = <&ap_gpio 53 0>; //GPIO1_A3
+               tms,clkreq-gpio   = <&ap_gpio 156 0>;
+       };
+};

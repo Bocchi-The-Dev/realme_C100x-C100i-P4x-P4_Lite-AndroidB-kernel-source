@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2024, Unisoc Inc.
+ */
+
+/ {
+	frequency-link {
+		cpu_ddr_freqlink_0: cpu-ddr-fl0 {
+			freqlink-enable = <0>;
+			default-ddr-freq = <256>;
+			freqlink-table-ums9230h = <
+			/* cpu-freq	ddr-freq */
+			1820000	1333
+			1716000	1333
+			1612000	1024
+			1536000	1024
+			1378000	768
+			1228800	768
+			1040000 768
+			884000	768
+			768000	256
+			614400	256
+			>;
+		};
+
+		cpu_ddr_freqlink_1: cpu-ddr-fl1 {
+			freqlink-enable = <0>;
+			default-ddr-freq = <256>;
+			freqlink-table-ums9230h = <
+			/* cpu-freq	ddr-freq */
+			1820000	1333
+			1690000	1024
+			1536000	1024
+			1404000	1024
+			1228800	1024
+			1040000	768
+			768000	768
+			>;
+		};
+	};
+};

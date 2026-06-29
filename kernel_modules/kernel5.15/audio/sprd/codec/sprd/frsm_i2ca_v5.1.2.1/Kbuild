@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: 2015 Spreadtrum Communications (Shanghai) Co., Ltd
+# SPDX-FileCopyrightText: 2016 Unisoc (Shanghai) Technologies Co., Ltd
+# SPDX-License-Identifier: GPL-2.0-only
+
+#
+# snd-soc-frsm-v5.ko
+#
+# Kbuild: for kernel building external module
+#
+# Note:
+# - Please use these predefined name for keeping code:
+#   KO_MODULE_NAME KO_MODULE_PATH KO_MODULE_SRC
+#
+
+#
+# Source List
+#
+KO_MODULE_NAME := snd-soc-frsm-v5
+KO_MODULE_PATH := $(src)
+KO_MODULE_SRC  :=
+
+COMPILE_TO_MODULE = n
+DEVICE_TYPE_DIGITAL = n
+PLATFORM_TYPE = sprd
+EXTRA_CFLAGS += $(call cc-option,-Wno-date-time,)
+EXTRA_CFLAGS += -I$(src)/inc
+EXTRA_CFLAGS += -Wenum-conversion -Werror -Wuninitialized
+EXTRA_CFLAGS += -DFRSM_I2CA_EXPORT_SUPPORT
+EXTRA_CFLAGS += -DSND_SOC_FRSM_AMP
+
+ccflags-y += -I$(KO_MODULE_PATH)
+
+obj-m := $(KO_MODULE_NAME).o
+
+SPRD_CARD_COMMON := \
+        frsm-i2ca.o \
+        frsm-amp-drv.o \
+        frsm-i2ca-2in1.o
+
+$(KO_MODULE_NAME)-y += $(SPRD_CARD_COMMON)
+
+
+# Comment it if the only object file has the same name with module
+#$(KO_MODULE_NAME)-y := $(patsubst $(src)/%.c,%.o,$(KO_MODULE_SRC))

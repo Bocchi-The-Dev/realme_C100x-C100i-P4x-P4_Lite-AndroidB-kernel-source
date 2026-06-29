@@ -1,0 +1,14 @@
+#
+# Unisoc Wlan Combo configuration
+#
+menu "Unisoc Wlan Device Drivers"
+config UNISOC_WLAN_COMBO
+	tristate "UNISOC_WLAN_COMBO"
+	depends on CFG80211
+	help
+	  This module adds support for Unisoc sc23xx series wcn chipset.
+	  The drivers is a fullmac driver, which make use of cfg80211 stack.
+
+	  If you choose to build a module, it will be called sprd_wlan_combo.ko.
+
+endmenu

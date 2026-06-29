@@ -1,0 +1,215 @@
+/*
+ * R61350 Truly LCD config dtsi file for spreadtrum
+ *
+ * Copyright (C) 2018, Spreadtrum Communications Inc.
+ *
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ */
+
+/ {
+    fragment {
+        target-path = "/";
+        __overlay__ {
+            lcds {
+                lcd_ili9883c_txd_boe_new_mipi_hd: lcd_ili9883c_txd_boe_new_mipi_hd {
+
+                sprd,dsi-work-mode = <1>; /* video burst mode*/
+                sprd,dsi-lane-number = <4>;
+                sprd,dsi-color-format = "rgb888";
+		sprd,bri-delay-flg = <1>;/* mipi to leda delay*/
+
+                sprd,phy-bit-clock = <1020000>;	/* kbps */
+                sprd,phy-escape-clock = <20000>;/* kHz */
+                sprd,dpi-clk-div = <6>;
+                sprd,video-lp-cmd-enable = <1>;
+                sprd,hporch-lp-disable = <1>;
+
+                sprd,width-mm = <0x47>;
+                sprd,height-mm = <0x9C>;
+                sprd,esd-check-enable = <1>;
+                sprd,esd-check-mode = <0>;
+                sprd,esd-check-period = <5000>;
+                sprd,esd-check-register = <0x0A>;
+                sprd,esd-check-value = <0x9C>;
+
+                sprd,power-i2c-bus = <4>;
+                sprd,power-i2c-addr = <0x3e>;
+                sprd,power-i2c-reg = [00 01 03];
+                sprd,power-i2c-val = [14 14 33];
+
+                sprd,reset-on-sequence = <1 5>, <0 10>, <1 30>;
+                sprd,reset-off-sequence = <1 5>;
+
+                sprd,tp-resume-by-ddic = <1>;
+                sprd,tp-aod-support = <1>;
+
+                /*
+                 * Use 4 bits number for descripting video lp mode, and it can be combined used.
+                 * BIT(0): allow vactive enter lp;
+                 * BIT(1): allow vfp enter lp;
+                 * BIT(2): allow vbp enter lp;
+                 * BIT(3): allow vsa enter lp;
+                 * For example:
+                 * If we need vfp & vbp enter lp, we can calculate this value as a result of BIT(1) | BIT(2)
+                 * And we get the result of 3 and set this value to lcd dt property sprd,video-lp-en-mode.
+                 * If we need all stage can enter lp, we can calculate this value as a result of BIT(0) | BIT(1) | BIT(2) | BIT(3).
+                 * And we get the result of 15 and set this value to lcd dt property sprd,video-lp-en-mode.
+                 */
+                sprd,video-lp-en-mode = <2>;
+                sprd,use-dcs-write;
+                sprd,initial-command = [
+                    39 00 00 04 FF 98 83 06
+                    23 00 00 02 3E E2
+                    23 00 00 02 06 A4
+                    39 00 00 04 FF 98 83 02
+                    23 00 00 02 43 02
+                    39 00 00 04 FF 98 83 03
+                    23 00 00 02 80 26
+                    23 00 00 02 81 26
+                    23 00 00 02 82 26
+                    23 00 00 02 83 20
+                    23 00 00 02 84 01
+
+                    23 00 00 02 88 FF
+                    23 00 00 02 89 FF
+                    23 00 00 02 8A FF
+                    23 00 00 02 8B FF
+                    23 00 00 02 A6 FF
+                    23 00 00 02 AC FF
+
+                    23 00 00 02 8C FF
+                    23 00 00 02 8D FF
+                    23 00 00 02 8E FF
+                    23 00 00 02 8F FF
+                    23 00 00 02 90 FF
+                    23 00 00 02 91 FF
+                    23 00 00 02 92 FF
+                    23 00 00 02 93 FF
+                    23 00 00 02 94 FF
+                    23 00 00 02 95 FF
+                    23 00 00 02 A7 FF
+                    23 00 00 02 AD FF
+
+                    23 00 00 02 A0 C0
+                    23 00 00 02 A3 CF
+                    23 00 00 02 A2 67
+                    23 00 00 02 A5 7E
+                    23 00 00 02 A8 B1
+                    23 00 00 02 AB B1
+                    23 00 00 02 AE DE
+                    23 00 00 02 AF 18
+                    23 00 00 02 B2 7A
+                    23 00 00 02 B5 DA
+                    23 00 00 02 87 7F
+                    23 00 00 02 96 5A
+                    23 00 00 02 97 C8
+                    23 00 00 02 98 DC
+                    23 00 00 02 99 DC
+                    23 00 00 02 9A DC
+                    23 00 00 02 9B DC
+                    23 00 00 02 9C DC
+                    23 00 00 02 9D DC
+                    23 00 00 02 9E DC
+                    23 00 00 02 9F DC
+                    23 00 00 02 BB 48
+                    23 00 00 02 B6 B4
+                    23 00 00 02 B7 B4
+                    23 00 00 02 B8 B4
+
+                    39 00 00 04 FF 98 83 05
+                    23 00 00 02 69 A1
+                    23 00 00 02 6A 87
+
+                    39 00 00 04 FF 98 83 08
+                    39 00 00 1E E0 00 24 30 51 75 40 A8 D7 FD 2D 55 55 95 CA FA AA 28 58 91 B5 FE E1 07 36 71 3F A2 D8 EC
+                    39 00 00 1E E1 00 24 30 51 75 40 A8 D7 FD 2D 55 55 95 CA FA AA 28 58 91 B5 FE E1 07 36 71 3F A2 D8 EC
+
+
+                    39 00 00 04 FF 98 83 00
+                    23 00 00 02 35 00
+                    23 00 00 02 53 2C
+                    23 00 00 03 68 04 00
+                    23 3E 00 02 11 00
+                    23 01 00 01 29
+
+                ];
+
+                sprd,sleep-in-command = [
+                05 32 00 01 28
+                05 78 00 01 10
+                ];
+
+                sprd,sleep-in-command-gesture-off = [
+                05 32 00 01 28
+                05 78 00 01 10
+                ];
+
+                sprd,sleep-out-command = [
+                05 64 00 01 11
+                05 14 00 01 29
+                ];
+
+                sprd,doze-in-command = [
+                23 00 00 02 53 24
+                ];
+
+                sprd,doze-out-command = [
+                23 00 00 02 53 2C
+                ];
+
+                sprd,cabc-off-command = [
+                39 00 00 04 FF 98 83 00
+                23 00 00 02 55 01
+                ];
+                sprd,cabc-ui-command = [
+                39 00 00 04 FF 98 83 00
+                23 00 00 02 55 01
+                ];
+                sprd,cabc-still-command = [
+                39 00 00 04 FF 98 83 00
+                23 00 00 02 55 02
+                ];
+                sprd,cabc-moving-command = [
+                39 00 00 04 FF 98 83 00
+                23 00 00 02 55 03
+                ];
+
+                display-timings {
+                    native-mode = <&ili9883c_txd_boe_new_timing0>;
+
+                    ili9883c_txd_boe_new_timing0: timing0 {
+                        clock-frequency = <170000000>;
+                        hactive = <720>;
+                        vactive = <1600>;
+                        hback-porch = <80>;
+                        hfront-porch = <64>;
+                        vback-porch = <30>;
+                        vfront-porch = <1368>;
+                        hsync-len = <80>;
+                        vsync-len = <2>;
+                    };
+                    ili9883c_txd_boe_new_timing1: timing1 {
+                        clock-frequency = <170000000>;
+                        hactive = <720>;
+                        vactive = <1600>;
+                        hback-porch = <80>;
+                        hfront-porch = <64>;
+                        vback-porch = <30>;
+                        vfront-porch = <371>;
+                        hsync-len = <80>;
+                        vsync-len = <2>;
+                    };
+                };
+
+                oled-backlight {
+                        default-brightness = <1306>;
+                        sprd,max-level = <4095>;
+                        brightness-levels = [
+                        39 00 00 03 51 0F FF
+                        ];
+                    };
+                };
+            };
+        };
+    };
+};

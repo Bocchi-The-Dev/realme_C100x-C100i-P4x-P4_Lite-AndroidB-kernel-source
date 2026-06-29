@@ -1,0 +1,4 @@
+*************************************************************************
+* This file has been merged into "arch/arm64/configs/gki-sprd.fragment".
+*************************************************************************
+ADD:CONFIG_SPRD_CLOSE_CRASH_KEY

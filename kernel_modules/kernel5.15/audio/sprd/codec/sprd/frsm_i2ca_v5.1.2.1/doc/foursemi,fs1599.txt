@@ -1,0 +1,69 @@
+FourSemi fs159x Audio Amplifier
+
+Required properties:
+
+  - compatible : "foursemi,fs1599"
+
+  - reg : The I2C address of the device
+
+  - fwm-name : Firmware name of the device
+  Default value in driver: frsm-params.bin
+
+Optional properties:
+
+  - spkr-id : For multi-devices application, NOT for mono application
+  spkr id is based on clockwise direction, same as from 0 to 12 o'clock,
+  and spk id IS from 1 to NDEV, it may not the same as count of speaker,
+  if the speakers share the same PA, the spkr id use the first one:
+  For example in PAD:
+  If spk2&spk7 use the same PA, In DTS:
+  spkr-id = <2>; //spk2-1(spk2),spk2-2(spk7), and spk8 change to spk7
+            spk1                         spk8              spk1
+    +--------^---->---+            +------->--------^-------->-------+
+    |        |        |            |                |                |
+    |   +----+----+   |            |   +------------+------------+   |
+    |   |    O    |   |       spk7 |   |            O            |   | spk2
+    |   |         |   |            |   |                         |   |
+    |   |         |   |            |   |                         |   |
+    ^   |  PHONE  |   v            ^   |           PAD           |   v
+    |   |         |   |            |   |                         |   |
+    |   |         |   |            |   |                         |   |
+    |   |         |   |       spk6 |   |                         |   | spk3
+    |   +---------+   |            |   +-------------------------+   |
+    |                 |            |                                 |
+    +--------<--------+            +----------------<----------------+
+            spk2                          spk5             spk4
+
+Example:
+
+/* mono application */
+&qupv3_se1_i2c {
+	spk_amp:fs159x@34 {
+		compatible = "foursemi,fs1599";
+		reg = <0x34>;
+		fwm-name = "fs159x-mono.bin";
+		status = "ok";
+	};
+};
+
+/* multi-devices application */
+&qupv3_se1_i2c {
+	spk_amp1:fs159x@34 {
+		compatible = "foursemi,fs1599";
+		reg = <0x34>;
+		fwm-name = "fs159x-spk1.bin";
+		spkr-id = <1>;
+		status = "ok";
+	};
+
+	spk_amp2:fs159x@35 {
+		compatible = "foursemi,fs1599";
+		reg = <0x35>;
+		fwm-name = "fs159x-spk2.bin";
+		spkr-id = <2>;
+		status = "ok";
+	};
+};
+
+If you want to use with FourSemi algo, you need to add frsm-amp device node
+Please refer to file: foursemi,frsm-amp.txt

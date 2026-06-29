@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Unisoc SP9863A-1h10 boards DTS file
+ *
+ * Copyright (C) 2019, Unisoc Inc.
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include "sc9863a/sc9863a.dtsi"
+#include "sc2721/sc2721.dtsi"
+#include "reserved-memory/sp9863a-common.dtsi"
+
+/ {
+	model = "Spreadtrum SP9863A-1H10 Board";
+
+	compatible = "sprd,sp9863a-1h10", "sprd,sc9863a";
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x80000000>;
+	};
+
+	chosen {
+		stdout-path = "serial1:921600n8";
+		bootargs = "earlycon console=ttyS1,921600n8 loop.max_part=7 loglevel=1
+		init=/init root=/dev/ram0 rw printk.devkmsg=on dummy_hcd.num=0 vmalloc=300M";
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&dpu {
+	sprd,logo-memory = <&logo_reserved>;
+	status = "okay";
+};
+
+&iommu_dispc {
+	status = "okay";
+};
+
+&dsi {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	panel: panel {
+		compatible = "sprd,generic-mipi-panel";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0>;
+
+		port@1 {
+			reg = <1>;
+			panel_in: endpoint {
+				remote-endpoint = <&dphy_out>;
+			};
+		};
+	};
+};
+
+&dphy {
+	status = "okay";
+};
+

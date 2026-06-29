@@ -1,0 +1,13 @@
+/ {
+        fragment {
+                target-path = "/";
+                __overlay__ {
+                    frsm_amp:frsm_amp {
+                        compatible = "foursemi,frsm-amp";
+                        frsm,amp-ndev = <2>;
+                        frsm,class-enable;
+                        status = "ok";
+                    };
+                };
+        };
+};

@@ -1,0 +1,15 @@
+#
+# Unisoc Camera device (NEW)configuration
+#
+menu "Unisoc Camera Platform"
+
+config UNISOC_CAMERA_DVFS
+	tristate "Unisoc Camera Dvfs"
+	depends on UNISOC_CAMERA_POWER
+	help
+	  This is support to UNISOC mmdvfs.
+	  If you want to use camera dvfs.
+	  Please say “m”.
+	  If not configured, voltage issues may occur.
+
+endmenu

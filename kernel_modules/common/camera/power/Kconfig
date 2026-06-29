@@ -1,0 +1,8 @@
+#
+# Unisoc Camera device (NEW)configuration
+#
+menu "Unisoc Camera Platform"
+
+config UNISOC_CAMERA_POWER
+	tristate "Unisoc Camera Power"
+endmenu

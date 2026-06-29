@@ -1,0 +1,111 @@
+// SPDX-License-Identifier: (Licenseref-Unisoc-General-1.0 OR GPL-2.0-only)
+/*
+ * ntc-common.dtsi - Unisoc platform device
+ *
+ * Copyright 2022 Unisoc(Shanghai) Technologies Co.Ltd
+ *
+ * Licensed under the Unisoc General Software License, version 1.0 (the
+ * License);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * https://www.unisoc.com/en_us/license/UNISOC_GENERAL_LICENSE_V1.0-EN_US
+ * Software distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OF ANY KIND, either express or implied.
+ * See the Unisoc General Software License, version 1.0 for more details.
+ *
+ * Alternatively you can use and distribute this file under the terms of the
+ * GNU General Public License version 2, provided that it has to be used
+ *  (including but not limited to combining, linking) with any other file under
+ * the GNU General Public License version 2 on platforms that use Unisoc Chips.
+ */
+
+/ {
+	tboard_thermistor:thermal-sensor {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&pmic_adc 1>;
+		io-channel-names = "sensor-channel";
+		temperature-lookup-table = <    (-39742) 1131
+						(-29777) 1110
+						(-19480) 1074
+						(-4679) 983
+						10110 838
+						24805 654
+						44922 413
+						54903 316
+						64895 238
+						74884 178
+						84883 133
+						94883 100
+						104880 75
+						114889 57
+						124872 43 >;
+	};
+
+	pa_thermistor: pa-sensor {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&pmic_adc 2>;
+		io-channel-names = "sensor-channel";
+		temperature-lookup-table = <
+			(-39742) 1131
+			(-29777) 1110
+			(-19480) 1074
+			(-4679) 983
+			10110 838
+			24805 654
+			44922 413
+			54903 316
+			64895 238
+			74884 178
+			84883 133
+			94883 100
+			104880 75
+			114889 57
+			124872 43 >;
+	};
+
+	chg_thermistor: chg-sensor {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&pmic_adc 4>;
+		io-channel-names = "sensor-channel";
+		temperature-lookup-table = <
+			(-39742) 1131
+			(-29777) 1110
+			(-19480) 1074
+			(-4679) 983
+			10110 838
+			24805 654
+			44922 413
+			54903 316
+			64895 238
+			74884 178
+			84883 133
+			94883 100
+			104880 75
+			114889 57
+			124872 43 >;
+	};
+
+};
+
+&thm_zone {
+	bd_thmzone: board-thmzone {
+		polling-delay-passive = <0>;
+		polling-delay = <0>;
+		thermal-sensors = <&tboard_thermistor>;
+	};
+
+	pa_thmzone: pa-thmzone {
+		polling-delay-passive = <0>;
+		polling-delay = <0>;
+		thermal-sensors = <&pa_thermistor>;
+	};
+
+	chg_thmzone: chg-thmzone {
+		polling-delay-passive = <0>;
+		polling-delay = <0>;
+		thermal-sensors = <&chg_thermistor>;
+	};
+};

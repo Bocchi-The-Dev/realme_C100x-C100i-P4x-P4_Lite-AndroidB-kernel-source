@@ -1,0 +1,12 @@
+#
+# Unisoc Bluetooth device configuration
+#
+menu "Unisoc Bluetooth Device Drivers"
+config UNISOC_WCN_BT
+	tristate "SPRDBT_TTY"
+	help
+	  This is support wcn chip for Unisoc.
+	  if you want to use 23xx series wcn chip of Unisoc.
+	  please say "y".
+
+endmenu

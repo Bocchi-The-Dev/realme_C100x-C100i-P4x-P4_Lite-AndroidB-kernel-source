@@ -1,0 +1,79 @@
+/*LIWEI 27K*/
+/ {
+	fragment {
+			target-path = "/";
+			__overlay__ {
+
+			bat1: battery1 {
+				compatible = "simple-battery";
+				charge-full-design-microamp-hours = <6663000>;
+				charge-term-current-microamp = <60000>;
+				constant-charge-voltage-max-microvolt = <4480000>;
+				factory-internal-resistance-micro-ohms = <79000>;
+				voltage-min-design-microvolt = <3455000>;
+				fast-charge-threshold-microvolt = <4200000>;
+				fullbatt-voltage = <4470000>;
+				fullbatt-current = <120000>;
+				first-fullbatt-current = <150000>;
+				fullbatt-track-end-vol = <4465000>;
+				fullbatt-track-end-cur = <130000>;
+				first-calib-voltage = <3622000>;
+				first-calib-capacity = <40>;
+
+				ir-cv-offset-microvolt = <100000>;
+				ir-rc-micro-ohms = <20000>;
+				ir-us-upper-limit-microvolt = <4520000>;
+				comp-resistance-mohm = <17>;
+				ocv-capacity-celsius = <25>;
+				ocv-capacity-table-0 = <4442000 100>, <4381000 95>, <4325000 90>,
+							<4265000 85>, <4204000 80>, <4146000 75>,
+							<4091000 70>, <4038000 65>, <3989000 60>,
+							<3933000 55>, <3880000 50>, <3849000 45>,
+							<3824000 40>, <3805000 35>, <3788000 30>,
+							<3769000 25>, <3747000 20>, <3725000 15>,
+							<3691000 10>, <3677000 5>, <3400000 0>;
+				voltage-temp-table = <955716 600>, <915396 650>, <869782 700>, <819745 750>,
+							<766392 800>, <711271 850>, <655767 900>,
+							<601132 950>, <548939 1000>, <500301 1050>,
+							<455648 1100>, <415282 1150>, <379367 1200>,
+							<347767 1250>, <320101 1300>, <296159 1350>,
+							<275542 1400>, <257785 1450>, <242565 1500>,
+							<229549 1550>, <218421 1600>, <209057 1650>,
+							<201064 1700>, <194199 1750>, <188318 1800>,
+							<183287 1850>, <178965 1900>, <175213 1950>,
+							<171973 2000>, <169192 2050>, <166777 2100>,
+							<164679 2150>, <162849 2200>, <161252 2250>;
+				capacity-temp-table = <50 99>, <25 100>, <10 98>, <0 93>, <(-10) 88>, <(-20) 78>;
+				resistance-temp-table = <50 80>, <25 100>, <10 185>, <0 1066>, <(-10) 1225>, <(-20) 1446>;
+
+		                charge-sdp-current-microamp = <500000 500000>;
+		                charge-dcp-current-microamp = <3000000 3000000>;
+		                charge-cdp-current-microamp = <1500000 1500000>;
+		                charge-unknown-current-microamp = <1000000 1000000>;
+		                charge-fchg-current-microamp = <3000000 2000000>;
+		                charge-flash-current-microamp = <4900000 2700000>;
+		                charge-wl-bpp-current-microamp = <1000000 1000000>;
+		                charge-wl-epp-current-microamp = <2000000 1000000>;
+
+		                cap-calib-energy-density-ocv-table = <3350000 3800000>, <4150000 4350000>;
+		                cap-track-energy-density-ocv-table = <3400000 3722000>;
+		                dcp-jeita-temp-table = <1000 1030 0 4480000>, <1150 1180 700000 4480000>,
+		                    <1450 1420 2000000 4480000>, <1600 1570 700000 4100000>;
+		                sdp-jeita-temp-table = <1000 1030 0 4480000>, <1150 1180 500000 4480000>,
+		                    <1450 1420 500000 4480000>, <1600 1570 500000 4100000>;
+		                cdp-jeita-temp-table = <1000 1030 0 4480000>, <1150 1180 700000 4480000>,
+		                    <1450 1420 1500000 4480000>, <1600 1570 700000 4100000>;
+		                unknown-jeita-temp-table = <1000 1030 0 4480000>, <1150 1180 700000 4480000>,
+		                    <1450 1420 1000000 4480000>, <1600 1570 700000 4100000>;
+		                fchg-jeita-temp-table = <1000 1030 0 4480000>, <1150 1180 700000 4480000>,
+		                    <1450 1420 3250000 4480000>, <1600 1570 700000 4100000>;
+		                flash-jeita-temp-table = <1000 1030 0 4480000>, <1150 1180 1000000 4480000>,
+		                    <1450 1420 5000000 4480000>, <1600 1570 1000000 4100000>;
+		                wl-bpp-jeita-temp-table = <1000 1030 0 4480000>, <1150 1180 500000 4480000>,
+		                    <1450 1420 1000000 4480000>, <1600 1570 5000000 4100000>;
+		                wl-epp-jeita-temp-table = <1000 1030 0 4480000>, <1150 1180 500000 4480000>,
+		                    <1450 1420 2000000 4480000>, <1600 1570 500000 4100000>;
+			};
+		};
+	};
+};
