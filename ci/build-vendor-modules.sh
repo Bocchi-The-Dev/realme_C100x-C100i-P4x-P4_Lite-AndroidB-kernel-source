@@ -240,43 +240,49 @@ export BSP_BOARD_CAMERA_MODULE_ISP_ADAPT_VERSION=qogirl6
 # (Incidentally they also read SCT606T_X6525, which independently confirms the
 # board is the X6525 -- see the swapped vendor/build.prop that made adb report
 # model X6528.)
-# BSP_BOARD_CAMERA_MODULE_ISP_VERSION is deliberately STILL UNSET.
+# BSP_BOARD_CAMERA_MODULE_ISP_VERSION is deliberately STILL UNSET, and the
+# reason is a limitation of THIS FORK rather than a missing fact.
 #
-# Candidates in the 5.15 tree:
-#   dcam_if_r4p0_isp_r6p11   DCAM-IF r4p0 + ISP r6p11
-#   dcam_r6p0_isp_r6p91      DCAM r6p0    + ISP r6p91
+# Settled against the device's own 5.4 tree
+# (github.com/Bocchi-The-Dev/kernel_transsion_ums9230, 5.4.254):
 #
-# Unlike its three siblings this one could not be pinned down, and the attempts
-# are recorded so they are not repeated:
+#   1. The X6525's ISP is 2v6.  Its sprd_camera.ko carries embedded build paths
+#      under camera/core/isp2.6/adpt/qogirl6/, and that directory exists in the
+#      5.4 tree, so the device was built with ISP_VERSION=isp2.6.
+#   2. The 5.15 tree has no isp2.* variant at all.  common/camera/core/ contains
+#      only: common, dcam_if_r4p0_isp_r6p11, dcam_r6p0_isp_r6p91.
+#   3. The UAPI header is missing too, which is the clincher.  5.4 ships
+#        interface/sprd_isp_2v6.h  sprd_isp_r6p10.h  sprd_isp_r6p11.h
+#                          sprd_isp_r6p91.h
+#      while this 5.15 tree ships only
+#        interface/sprd_isp_r6p11.h  sprd_isp_r6p91.h
 #
-#  - Vendor build paths.  This is how the other three were settled, and it fails
-#    here for a structural reason: the 5.4 module was built from
-#      camera/core/isp2.6/adpt/qogirl6/
-#    and the 5.15 tree reorganised that into the dcam_*_isp_* directories, so
-#    the path does not name either candidate.  (It DID confirm adpt/qogirl6,
-#    which is why ISP_ADAPT_VERSION=qogirl6 is solid.)
-#  - Symbol fingerprint.  The four r3pX CSI variants proved incomparable because
-#    they define identical names; the same problem does not apply here, but the
-#    comparison is swamped by the 5.4-vs-5.15 generation gap.
-#  - String literals.  Of the strings unique to each candidate, 3 appear in the
-#    device's sprd_camera.ko for dcam_if and 0 for dcam_r6p0 -- far too few to
-#    mean anything across a driver generation.
-#  - Filename overlap with the 5.4 build: 6/21 for dcam_if, 4/21 for dcam_r6p0.
-#  - Device tree.  It carries sprd,hwdvfs-dcam-if and sprd,hwdvfs-isp nodes, so
-#    a DCAM-IF block exists, but no ISP revision property anywhere.
-#  - dmesg and logcat name neither.
+# So the two available variants target r6p11 and r6p91 ISP silicon, and this
+# board's ISP is 2v6.  sprd_camera.ko cannot be built correctly here by
+# configuration, and picking one of the two would produce a driver that registers
+# the wrong ISP revision -- worse than absent, because it would load cleanly and
+# then fail at runtime with camera misbehaviour nothing explains.
 #
-# The best available signal is the presence of sprd,hwdvfs-dcam-if, which only
-# the dcam_if_* candidate is named for.  That is suggestive, not conclusive, and
-# a wrong pick selects register-level ISP code, so it is left unset rather than
-# guessed.  Note that choosing is not the blocker either way: BOTH candidates
-# fail to build until ported, with different errors --
-#   dcam_if_r4p0_isp_r6p11: implicit declaration of __flush_dcache_area
-#                           (no longer exported to modules in 5.15)
-#   dcam_r6p0_isp_r6p91:    cast to smaller integer type 'unsigned int' from
-#                           'void *' (a 32/64-bit pointer bug)
-# sprd_camera.ko is in the device's modules.load, so this is a real gap, but it
-# is not boot-blocking: the phone reaches the launcher without a camera driver.
+# Getting sprd_camera.ko needs one of:
+#   a) Unisoc's 5.15 BSP for ums9230_hulk, which is where the 2v6 variant and
+#      sprd_isp_2v6.h would live.  The 5.4 tree has
+#      common/camera/ums9230_hulk/ with interface/sprd_isp_2v6.h in it, so the
+#      board-specific tree is where to look.
+#   b) Porting the 2v6 support across by hand.
+#
+# This is NOT boot-blocking: the phone reaches the launcher without a camera
+# driver.  It is the last device-critical gap in
+# ci/check-module-coverage.sh, and it is a known tree gap rather than an
+# uninvestigated one.
+#
+# Also note the 5.4 tree's core/Kbuild has
+#   ifeq ($(strip $(BSP_KERNEL_VERSION)), kernel5.15)
+#   ISP_DIR := cam_sys
+#   endif
+# which is why cam_sys exists as a SEPARATE UNIT in 5.15 and declares the same
+# KO_MODULE_NAME (sprd_camera) as core.  The two are alternative camera cores for
+# different ISP revisions, not duplicates; cam_sys is excluded so we never ship
+# it under core's name.
 export BSP_BOARD_CAMERA_MODULE_CSI_VERSION=receiver_r3p1
 export BSP_BOARD_CAMERA_MODULE_CPP_VERSION=lite_r6p0
 
