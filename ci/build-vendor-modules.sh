@@ -199,7 +199,14 @@ if [ "${fail_count}" -gt 0 ]; then
 			"${MODOUT}/${tag}.log" 2>/dev/null | sed 's/^/      /'
 	done
 fi
-produced=$(find "${MODOUT}" -name '*.ko' | wc -l)
+# Where the .ko files actually are.  Mechanism 1 (the BSP_MODULES_OUT wrappers)
+# stages them under ${MODOUT}, but mechanism 2 (the "all:" wrappers, e.g. the
+# GPU) passes M=$(SRC) to kbuild and so writes the module NEXT TO THE SOURCE.
+# Counting only ${MODOUT} reported ".ko produced: 0" for a unit that had just
+# built mali_kbase.ko successfully, and the same blind spot made the
+# board-critical assertion below miss it.  The packaging step already globs both
+# (find kernel_modules -name '*.ko'); this makes the script agree.
+produced=$( { find "${MODOUT}" -name '*.ko'; find "${KSRC}/kernel_modules" -name '*.ko'; } | wc -l)
 echo "=== .ko produced: ${produced} ==="
 
 # Board-critical assertion.
@@ -214,7 +221,7 @@ echo "=== .ko produced: ${produced} ==="
 CRITICAL_MODULES="sprd_wlan_combo mali_kbase snd-soc-sprd-codec-sc2730 sprdbt_tty sprd_fm"
 missing_critical=""
 for m in ${CRITICAL_MODULES}; do
-	if [ -z "$(find "${MODOUT}" -name "${m}.ko" -print -quit)" ]; then
+	if [ -z "$( { find "${MODOUT}" -name "${m}.ko"; find "${KSRC}/kernel_modules" -name "${m}.ko"; } | head -1)" ]; then
 		missing_critical="${missing_critical} ${m}.ko"
 	fi
 done
