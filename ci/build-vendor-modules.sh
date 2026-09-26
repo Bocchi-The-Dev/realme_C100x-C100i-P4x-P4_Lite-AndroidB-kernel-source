@@ -202,6 +202,11 @@ export BSP_KERNEL_BUILD_CONFIG=build.config.gki.aarch64.ums9230_
 # the same SoC generation.
 export BSP_BOARD_CAMERA_MODULE_ISP_ADAPT_VERSION=qogirl6
 
+# The remaining two, from the same vendor build config, which is authoritative
+# for this SoC and settles values that could not be derived any other way:
+export BSP_BOARD_CAMERA_MODULE_DVFS=qogirl6
+export BSP_BOARD_CAMERA_MODULE_ISP_VERSION=isp2.6
+
 # The other two camera selectors, read off the VENDOR'S OWN BUILD PATHS embedded
 # in the debug strings of the modules that demonstrably work on this hardware.
 #
@@ -345,9 +350,10 @@ STAGE_PROVIDERS="sprd-ion"
 #   dmabufheap    -> sprd-dmabuf            (provider for core, cam_sys, cpp)
 #   flash_drv     -> sprd_flash_drv         (provider for core, cam_sys)
 #   camera/power  -> sprd_camsys_pw_domain  (provider for sensor, core, cam_sys, cpp)
-#   camera/sensor -> sprd_sensor            (provider for core, cam_sys)
-#   camera/core   -> sprd_camera            (provider for cpp!)
-#   camera/cam_sys-> sprd_camsys
+#   camera/sensor -> sprd_sensor            (provider for cam_sys)
+#   camera/cam_sys-> sprd_camera            (provider for cpp!) -- cam_sys is
+#                                            the 5.15 camera module, see below
+#   camera/cpp    -> sprd_cpp
 #   camera/cpp    -> sprd_cpp
 # Note cpp depends on sprd_camera, so camera/core must precede it.
 ORDERED_UNITS="
@@ -355,7 +361,6 @@ kernel_modules/kernel5.15/dmabufheap
 kernel_modules/common/camera/flash/flash_drv
 kernel_modules/common/camera/power
 kernel_modules/common/camera/sensor
-kernel_modules/common/camera/core
 kernel_modules/common/camera/cam_sys
 kernel_modules/common/camera/cpp
 "
@@ -418,7 +423,7 @@ if [ -n "${UNITS_FILE:-}" ]; then
 else
 	mapfile -t UNITS < <(find kernel_modules -name Kbuild -printf '%h\n' \
 		| sort -u | grep -v '/display/dispc$' | grep -v '/mali/csf/ipa_context$' \
-	| grep -v '/mali/csf/ipa_control$' | grep -v '/common/camera/cam_sys$' \
+	| grep -v '/mali/csf/ipa_control$' | grep -v '/common/camera/core$' \
 		| grep -v '/gpu/midgard/mali$' | grep -v '/gpu/gondul/mali$' \
 		| grep -v '/gpu/natt/mali/csf$')
 fi
@@ -426,20 +431,42 @@ fi
 echo "discovered ${#UNITS[@]} external module units (parallel=${JOBS}, timeout=${UNIT_TIMEOUT}s each)"
 echo "skipping kernel_modules/kernel5.15/display/dispc -- duplicate of in-tree sprd-drm"
 echo "skipping */mali/csf/ipa_control -- a Kbuild fragment included by its parent csf/Kbuild, not a unit"
-# common/camera/cam_sys is excluded because it COLLIDES on the output name with
-# common/camera/core: both Kbuilds set "KO_MODULE_NAME := sprd_camera".  The
-# vendor's build only ever builds one of the two, so the collision never surfaces
-# there; we build both, they fight over \${MODOUT}/sprd_camera, and since cam_sys
-# succeeds while core fails, cam_sys's code was being packaged as sprd_camera.ko
-# -- the WRONG driver under the exact name the loader uses.
+# common/camera/core is excluded, and common/camera/cam_sys is BUILT, because
+# that is what Unisoc's own build config for this SoC does.  See
+# ci/build.config.gki.aarch64.ums9230_user, copied verbatim from
+# realme-kernel-opensource/android_kernel_realme_ums9230, branch
+# realme/ums9230_v_15.0.  Its EXT_MODULES list contains
+#   ../modules/common/camera/power
+#   ../modules/common/camera/cam_sys      <- produces sprd_camera.ko
+#   ../modules/common/camera/cpp
+#   ../modules/common/camera/flash/...
+#   ../modules/common/camera/sensor
+#   ../modules/common/camera/mmdvfs
+# and does NOT contain ../modules/common/camera/core at all.
 #
-# Which one is legitimate: the device's modules.load wants sprd_camera.ko and has
-# no sprd_camsys.ko, and the 5.4 sprd_camera.ko carries embedded build paths
-# under camera/core/isp2.6/, so core is the real producer and cam_sys is either
-# misnamed in this tree or not shipped on this board at all.  Until
-# BSP_BOARD_CAMERA_MODULE_ISP_VERSION lets core build, the correct outcome is an
-# ABSENT sprd_camera.ko, not a mislabeled one.
-echo "skipping common/camera/cam_sys -- same KO_MODULE_NAME (sprd_camera) as camera/core"
+# This reverses an earlier decision here, and the earlier reasoning was wrong.
+# Both units declare KO_MODULE_NAME := sprd_camera, so on seeing the collision I
+# excluded cam_sys on the theory that core was the real producer and cam_sys a
+# misnamed duplicate.  The vendor config says the opposite: for kernel5.15
+# cam_sys IS the camera module.  The 5.4 tree's core/Kbuild explains why, and it
+# is the same file that settles the ISP question:
+#
+#   ISP_DIR := $(BSP_BOARD_CAMERA_MODULE_ISP_VERSION)
+#   ...
+#   ifeq ($(strip $(BSP_KERNEL_VERSION)), kernel5.15)
+#   ISP_DIR := cam_sys
+#   endif
+#
+# i.e. on 5.15 the ISP_DIR is forced to cam_sys, so the isp2.6/hulk_isp2.6 source
+# trees that core/Kbuild would compile are a 5.4-era arrangement that 5.15 does
+# not use.  Our own 5.15 tree has no core/isp2.6 directory either, which is the
+# same fact from the other direction.
+#
+# cam_sys was observed building sprd_camera.ko (35 MB) into
+# \${MODOUT}/sprd_camera before it was excluded, with a Kbuild symlink pointing
+# at cam_sys rather than core.  That was the evidence I misread as a stale
+# artifact.  It was the correct module all along.
+echo "skipping common/camera/core -- a 5.4-era unit, absent from the ums9230 EXT_MODULES list; cam_sys is the 5.15 camera module"
 echo "skipping gpu/{midgard,gondul}/mali -- platform dirs are pike2/sharkle and sharkl5Pro;"
 echo "  this board is qogirl6 and its GPU is natt (DT: sprd,mali-natt)"
 
