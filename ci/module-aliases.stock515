@@ -56,7 +56,24 @@
 #   one is a real functional hole -- MM/modem DCDC voltage control -- and it
 #   would need a new regulator driver, not a config line.  Flagged, not fixed.
 # ---------------------------------------------------------------------------
+# sprd_battery_info -> sc27xx_fuel_gauge
+#   The stock loader names sprd_battery_info.ko, but no such module exists --
+#   not in 5.15 and not in 5.4 either.  Both trees fold the object into the fuel
+#   gauge:
+#     5.15  drivers/power/supply/Makefile:105
+#            sc27xx_fuel_gauge-objs := sprd_fuel_gauge_core.o sprd_sc27xx_fuel_gauge.o
+#                                     unisoc_battery.o sprd_battery_info.o
+#     5.4   drivers/power/supply/Makefile:97
+#            sc27xx_fuel_gauge-objs := sc27xx_fuel_gauge_core.o unisoc_battery.o
+#                                     sprd_battery_info.o
+#   CONFIG_FUEL_GAUGE_SC27XX is already m, and the built sc27xx_fuel_gauge.ko
+#   exports 12 sprd_battery_{get,put}_battery_info symbols.  This matters beyond
+#   tidiness: sprd-charger-manager calls into them, so sc27xx_fuel_gauge has to
+#   be resident before it, and the depmod index derives that ordering from the
+#   same symbol data.
+# ---------------------------------------------------------------------------
 misc_sprd_uid:sprd_uid
+sprd_battery_info:sc27xx_fuel_gauge
 sprd_gpu_cooling:sprd_thermal_ctl
 gnss_common_ctl_all:unisoc_gnss_common_ctl_all
 omnivision_td4160:omnivision_tcm-modules
