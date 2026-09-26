@@ -21,6 +21,7 @@
 #   alias was therefore chasing a driver we do not ship.
 #
 # ---------------------------------------------------------------------------
+sprd_gpu_cooling:sprd_thermal_ctl
 gnss_common_ctl_all:unisoc_gnss_common_ctl_all
 omnivision_td4160:omnivision_tcm-modules
 wcn_bsp:wcn_bsp

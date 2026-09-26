@@ -129,3 +129,49 @@ CONFIG_SPRD_NATIVE_HANG_MONITOR=y
 # eMMC after a sysdump, so it is only worth having once we know the u-boot
 # half of that path runs -- and flipping the broad SPRD_DEBUG switch to find
 # out is not a trade worth making before the phone boots.
+
+# --- modules the X6525's own modules.load asks for, that nothing enabled ----
+#
+# Both of these were found by ci/check-module-coverage.sh diffing our build
+# against the device's /vendor/lib/modules/modules.load, and both were absent
+# from the generated config entirely -- not set to "n", simply never defined, so
+# no .ko was produced and nothing in the tree complained.
+#
+# CONFIG_UNISOC_GPU_COOLING_DEVICE -> sprd_gpu_cooling.ko
+#   The device's own 5.4 config has CONFIG_SPRD_GPU_COOLING_DEVICE=m, i.e. this
+#   is the same option under its post-rename name (SPRD_ -> UNISOC_).  Built
+#   from drivers/unisoc_platform/thermal/Makefile.  Without it the GPU has no
+#   thermal throttling path, which on this SoC is how the Mali driver is kept
+#   from cooking the phone.
+#
+# CONFIG_ION_SPRD -> sprd-ion.ko
+#   drivers/staging/android/ion/sprd/Makefile.  The device loads sprd-ion.ko
+#   from modules.load, and the out-of-tree camera units hard-depend on it:
+#   common/camera/core/Makefile and common/camera/cam_sys/Makefile both do
+#     KBUILD_EXTRA_SYMBOLS += $(BSP_MODULES_OUT)/sprd-ion/Module.symvers
+#   so without it those units cannot resolve ion symbols even once they compile.
+#   Note the device's 5.4 config says "# CONFIG_ION_SPRD is not set", yet it
+#   ships and loads sprd-ion.ko -- in 5.4 the driver hung off a different
+#   symbol.  ION_SPRD is the 5.15 name, and the load list plus the camera
+#   dependency are the authority here, not the old config value.
+CONFIG_UNISOC_GPU_COOLING_DEVICE=m
+
+# ION.  The device's own 5.4 config is the reference for the values:
+#   CONFIG_ION=y
+#   CONFIG_ION_SYSTEM_HEAP=y
+#   CONFIG_ION_CMA_HEAP=m      -> ion_cma_heap.ko, which modules.load names
+# and ION_SPRD is the 5.15 name for sprd-ion.ko.
+#
+# CONFIG_ION_SPRD depends on ION, so ION has to be enabled first -- setting
+# ION_SPRD alone silently produces nothing, which is exactly what happened on
+# the first attempt (the symbol was absent from the generated config and no
+# error was reported anywhere).
+#
+# The device's 5.4 config says "# CONFIG_ION_SPRD is not set" yet it ships and
+# loads sprd-ion.ko, so 5.4 hung that driver off some other switch.  The load
+# list and the camera units' KBUILD_EXTRA_SYMBOLS reference are the authority
+# for 5.15, not the old config value.
+CONFIG_ION=y
+CONFIG_ION_SYSTEM_HEAP=y
+CONFIG_ION_CMA_HEAP=m
+CONFIG_ION_SPRD=m
