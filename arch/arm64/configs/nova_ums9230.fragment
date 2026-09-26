@@ -2,36 +2,78 @@
 #
 # Merge order: gki_defconfig -> sprd_gki_sharkl6.fragment -> this fragment.
 #
-# gki_defconfig selects CONFIG_LTO_CLANG_FULL=y, whose single-process
-# `LTO vmlinux.o` link peaks above the 14 GiB available on a
-# ubuntu-22.04 GitHub runner and gets OOM-killed (exit 143).  ThinLTO is
-# the same optimization model (whole-program, cross-module inlining) but
-# parallelises the backend, so peak RSS drops by an order of magnitude.
-# It also keeps CONFIG_CFI_CLANG=y valid -- CFI_CLANG requires LTO, so
-# plain "disable LTO" is not an option here.
+# !! COMMENT HYGIENE FOR THIS FILE !!
+# merge_config.sh builds its directive list from two anchored patterns:
+#     ^CONFIG_<SYM>=<value>
+#     ^# CONFIG_<SYM> is not set$      (whole line, nothing else)
+# A comment that merely mentions a symbol together with a value, or that is
+# exactly "# CONFIG_X is not set", gets ingested as a real directive.  That
+# does not corrupt .config (kconfig still sees only the last real assignment,
+# and out-of-order lines can bite), but it does make the merge log print the
+# comment back as the "New value", which is miserable to debug from.  So:
+# refer to symbols below WITHOUT a value, and never write a bare
+# "# CONFIG_... is not set" line inside a comment.
+
+# --- LTO -------------------------------------------------------------------
+# gki_defconfig turns on full LTO, whose single-process `LTO vmlinux.o` link
+# peaks above the ~14 GiB a ubuntu-22.04 runner has and gets OOM-killed -- the
+# job dies with exit 143 immediately after printing "LTO vmlinux.o".  ThinLTO
+# is the same whole-program optimisation model (cross-module inlining) but it
+# parallelises the backend, so peak RSS drops by an order of magnitude.  It
+# also keeps CFI_CLANG valid, which matters because CFI_CLANG depends on
+# LTO_CLANG, so plain "switch LTO off" is not an available option here.
 CONFIG_LTO_CLANG_FULL=n
 CONFIG_LTO_CLANG_THIN=y
 
 # --- Display (hard requirement) -------------------------------------------
-# sprd_gki_sharkl6.fragment line 248 carries `# CONFIG_UNISOC_DISP is not set`,
-# which leaves the whole display stack out of the build -> guaranteed black
+# sprd_gki_sharkl6.fragment disables the Unisoc display platform outright,
+# which leaves the entire display stack out of the build -- a guaranteed black
 # screen.  The running 5.4 device loads BOTH sprd_drm.ko and sprd_gsp.ko, and
-# the X6525 device tree's display nodes bind to drivers that only exist inside
+# the X6525 device tree's display nodes bind only to drivers that live inside
 # sprd-drm.ko:
 #
-#   soc/ap-ahb/dsi@31100000  compatible = "sprd,qogirl6-dsi-host"
-#     -> drivers/unisoc_platform/sprd_disp/sprd_dsi.c:884
-#   dphy                     compatible = "sprd,qogirl6-dsi-phy"
-#     -> drivers/unisoc_platform/sprd_disp/sprd_dphy.c:237
-#   .../panel                compatible = "sprd,generic-mipi-panel"
-#     -> drivers/unisoc_platform/sprd_disp/sprd_dsi_panel.c:1126 (mipi_dsi_driver)
+#   soc/ap-ahb/dsi@31100000  qogirl6-dsi-host   -> sprd_disp/sprd_dsi.c
+#   dphy                     qogirl6-dsi-phy    -> sprd_disp/sprd_dphy.c
+#   .../panel                generic-mipi-panel -> sprd_disp/sprd_dsi_panel.c
+#                             (mipi_dsi_driver table)
 #
-# UNISOC_DISP is tristate ("the module will be called sprd_drm"), so keep it =m
-# to match the device's own module set and load order rather than baking a
-# ~1 MB of display driver into the GKI Image.  Note sprd-drm uses
-# disp_trusty.o (CONFIG_TRUSTY_VIRTIO_IPC), so the trusty modules must be
-# insmod'd BEFORE sprd-drm.ko.
+# UNISOC_DISP is tristate and its Kconfig help names sprd_drm as the resulting
+# module, so keep it modular to match the device's own module set and load
+# order instead of baking ~1 MB of display code into the GKI Image.  sprd-drm
+# pulls in disp_trusty.o (gated on TRUSTY_VIRTIO_IPC), so the trusty modules
+# must be insmod'd BEFORE sprd-drm.ko.
 CONFIG_UNISOC_DISP=m
 CONFIG_DRM_SPRD_DPU0=y
 CONFIG_DRM_SPRD_DSI=y
 CONFIG_UNISOC_GSP=m
+
+# --- Ramoops / pstore (crash persistence) ----------------------------------
+# Keep the kernel's oops/panic records in RAM across reboot.  This is our ONLY
+# diagnostic channel: the board has no dtb/dtbo partition, no FDT inside
+# boot.img and no serial console, so when a 5.15 boot attempt goes wrong the
+# pstore record is the single artefact that tells us why.  Every boot attempt
+# should leave a trail.
+#
+# Symbol-name traps here, all of which would silently build nothing:
+#   * Upstream renamed PSTORE_RAMOOPS -> PSTORE_RAM back in 5.10.  The *module*
+#     is still called ramoops.ko (see the PSTORE_RAM help text), but the
+#     Kconfig symbol is PSTORE_RAM.  Writing the old name produces a phantom
+#     line in .config and no ramoops at all.
+#   * The compression choice is PSTORE_DEFLATE_COMPRESS, not PSTORE_DEFLATE,
+#     and the *default* is a separate bool in a choice group.
+# gki_defconfig already turns on PSTORE, PSTORE_CONSOLE, PSTORE_PMSG and
+# PSTORE_RAM; pinning them here means a future defconfig bump cannot quietly
+# drop the crash log, and the compress options keep 256 KiB of ramoops holding
+# a useful amount of text.
+#
+# The matching device-tree node is reserved-memory/ramoops@fff80000 -- 256 KiB
+# with 32 KiB each for record/console/pmsg.  Note it lives in the *overlay*
+# dtsi, and we deliberately do NOT flash our own DTB: the stock X6525 DTB
+# already carries this node, which is why no DT change is needed here.
+CONFIG_PSTORE=y
+CONFIG_PSTORE_RAM=y
+CONFIG_PSTORE_CONSOLE=y
+CONFIG_PSTORE_PMSG=y
+CONFIG_PSTORE_COMPRESS=y
+CONFIG_PSTORE_DEFLATE_COMPRESS=y
+CONFIG_PSTORE_DEFLATE_COMPRESS_DEFAULT=y

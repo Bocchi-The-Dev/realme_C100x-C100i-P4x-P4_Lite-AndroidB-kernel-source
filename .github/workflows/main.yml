@@ -82,12 +82,15 @@ jobs:
           echo "=== board-critical config ==="
           for sym in UNISOC_DISP DRM_SPRD_DPU0 DRM_SPRD_DSI UNISOC_GSP \
                     ARM_SPRD_CPUFREQ_V2 TRUSTY_TUI TRUSTY_VIRTIO_IPC \
-                    FUEL_GAUGE_SC27XX; do
-            line=$(grep -E "^CONFIG_${sym}=" out/.config || true)
-            printf '  %-24s %s\n' "$sym" "${line:-*** UNRESOLVED (phantom/absent) ***}"
-            case "$line" in
-              =y|=m) ;;
-              *) echo "::error::CONFIG_${sym} did not resolve to y/m"; exit 1;;
+                    FUEL_GAUGE_SC27XX PSTORE_RAM PSTORE_CONSOLE PSTORE_PMSG \
+                    PSTORE_DEFLATE_COMPRESS; do
+            # Take the VALUE, not the whole line: grep returns
+            # "CONFIG_X=m", which never matches a `case =m` pattern.
+            val=$(grep -E "^CONFIG_${sym}=" out/.config | sed -E "s/^CONFIG_[A-Z0-9_]+=//")
+            printf '  %-24s =%s\n' "$sym" "${val:-<absent>}"
+            case "$val" in
+              y|m) ;;
+              *) echo "::error::CONFIG_${sym} did not resolve to y/m (got '${val:-absent}')"; exit 1;;
             esac
           done
           echo "kernelrelease: $(make LLVM=1 ARCH=arm64 O=out -s kernelrelease)"
