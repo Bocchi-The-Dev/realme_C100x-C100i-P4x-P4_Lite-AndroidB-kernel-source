@@ -28,7 +28,20 @@
 #include <linux/sched.h>
 #include <linux/version.h>
 #include <linux/i2c.h>
-#include <../../../../../bsp/kernel5.15/kernel5.15/include/linux/hardware_info.h>
+/*
+ * Was: #include <../../../../../bsp/kernel5.15/kernel5.15/include/linux/hardware_info.h>
+ *
+ * That spelling assumes the vendor's full BSP source layout, where this file
+ * sits five levels below a bsp/ directory that also holds a copy of the kernel
+ * headers.  This fork has no bsp/ directory, so the path resolved to nothing
+ * and the unit failed with
+ *   fatal error: '../../../../../bsp/kernel5.15/kernel5.15/include/linux/hardware_info.h'
+ *   file not found
+ * even though the header is present the whole time at the kernel's own
+ * include/linux/hardware_info.h, which kbuild already puts on the include
+ * path.  So just include it normally.
+ */
+#include <linux/hardware_info.h>
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 #include <video/sprd_mmsys_pw_domain.h>

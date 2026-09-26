@@ -144,6 +144,18 @@ build_one() {
 export BSP_KERNEL_VERSION=kernel5.15
 export BSP_KERNEL_BUILD_CONFIG=build.config.gki.aarch64.ums9230_
 
+# The camera ISP adapt layer.  cam_sys/Kbuild does
+#   ADAPT_DIR := $(BSP_BOARD_CAMERA_MODULE_ISP_ADAPT_VERSION)
+# and then includes -I$(KO_MODULE_PATH)/adpt/$(ADAPT_DIR)/inc.  Unset, that
+# include path collapses to adpt//inc and the build dies with
+#   isp_hw.h:17:10: fatal error: 'dcam_hw_adpt.h' file not found
+# cam_sys/adpt/ ships qogirl6, qogirn6pro, qogirn6l, sharkl3, sharkl5 and
+# sharkl5pro, and the Kbuild has an explicit branch for each.  qogirl6 is this
+# board: the live device tree reports "Spreadtrum UMS9230 1H10 SoC" with
+# compatible "sprd,ums9230", and every other GSP/DT signal in the tree points at
+# the same SoC generation.
+export BSP_BOARD_CAMERA_MODULE_ISP_ADAPT_VERSION=qogirl6
+
 export -f build_one
 # RESULTS must be exported too: xargs runs build_one in a separate `bash -c`,
 # and an unexported variable is empty there, so the per-unit result lines were
