@@ -156,6 +156,47 @@ export BSP_KERNEL_BUILD_CONFIG=build.config.gki.aarch64.ums9230_
 # the same SoC generation.
 export BSP_BOARD_CAMERA_MODULE_ISP_ADAPT_VERSION=qogirl6
 
+# The other two camera selectors, read off the VENDOR'S OWN BUILD PATHS embedded
+# in the debug strings of the modules that demonstrably work on this hardware.
+#
+# Pulling /vendor/lib/modules/sprd_sensor.ko and sprd_cpp.ko off the device and
+# running `strings` on them shows the __FILE__ paths the 5.4 modules were built
+# from:
+#
+#   .../SCT606T_X6525_VERSION_BUILD/.../camera/sensor/csi2/sprd/receiver_r3p1/csi_driver.c
+#   .../SCT606T_X6525_VERSION_BUILD/.../camera/cpp/cpp_lite/hw/lite_r6p0/cpp_hw.c
+#   ... (also cpp_k_dma.c, cpp_k_rot.c, cpp_k_scale.c, and the lite_r6p0
+#        "lite_r6p0" string appears on its own)
+#
+# So:
+#   BSP_BOARD_CAMERA_MODULE_CSI_VERSION = receiver_r3p1
+#   BSP_BOARD_CAMERA_MODULE_CPP_VERSION = lite_r6p0
+#
+# This is worth spelling out because neither value is derivable.  Both are
+# compile-time selections of register-level code, chosen by the vendor's build
+# system, and a wrong pick yields a module that builds and links cleanly and
+# then programs the wrong registers -- a camera that comes up but does not
+# work, with nothing in dmesg to explain it.  Earlier attempts to infer them
+# both failed:
+#
+#   - By symbol fingerprint.  The live sprd_sensor.ko exports 37 csi_* symbols
+#     and matching them against each candidate scored receiver_r3pX at 34/37
+#     versus 18-29 for the r2p0 family.  That only narrows it to the r3pX
+#     family: the four r3pX variants define IDENTICAL symbol names, so the test
+#     cannot separate them, and the score is confounded anyway because the 5.4
+#     driver is an older generation that would have fewer symbols regardless.
+#   - From the device tree.  sprd/csi01 and sprd/csi02 carry sprd,ip-version
+#     (bytes 00 00 02 00), but no candidate variant parses that property -- it
+#     is not a DT-driven choice at all.
+#   - logcat and dmesg name neither version.
+#
+# The build paths in the shipped modules are the vendor telling us directly.
+# (Incidentally they also read SCT606T_X6525, which independently confirms the
+# board is the X6525 -- see the swapped vendor/build.prop that made adb report
+# model X6528.)
+export BSP_BOARD_CAMERA_MODULE_CSI_VERSION=receiver_r3p1
+export BSP_BOARD_CAMERA_MODULE_CPP_VERSION=lite_r6p0
+
 export -f build_one
 # RESULTS must be exported too: xargs runs build_one in a separate `bash -c`,
 # and an unexported variable is empty there, so the per-unit result lines were
