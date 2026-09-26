@@ -21,7 +21,7 @@
 #   ci/box-build.sh config       # generate out/.config only (fast, ~1 min)
 #   ci/box-build.sh image        # build the Image only
 #   ci/box-build.sh modules      # in-tree + vendor modules (the fast loop)
-#   ci/box-build.sh coverage     # module coverage report only
+#   ci/box-build.sh coverage     # coverage report + modules.load + depmod index
 #
 # Assumes: Ubuntu 24.04, curl, git, ~40 GB free, passwordless sudo.  Installs
 #          the same apt packages as CI plus the LLVM toolchain.
@@ -137,7 +137,7 @@ do_modules() {
 }
 
 do_coverage() {
-	mkdir -p pkg/modules-intree pkg/modules-vendor
+	mkdir -p pkg/modules-intree pkg/modules-vendor pkg/loadlist
 	find out -name '*.ko' -not -path 'out/vendor_modules/*' \
 		-exec cp --parents {} pkg/modules-intree/ \; 2>/dev/null || true
 	find out/vendor_modules -name '*.ko' \
@@ -146,6 +146,11 @@ do_coverage() {
 		-exec cp --parents {} pkg/modules-vendor/ \; 2>/dev/null || true
 	./ci/check-module-coverage.sh ci/modules.load.stock \
 		pkg/modules-intree pkg/modules-vendor
+	# Derive modules.load and the depmod index from what we actually built.
+	KVER="$(make LLVM=1 ARCH=arm64 O=out -s kernelrelease 2>/dev/null | tr -d '+')"
+	KVER="${KVER}" KBUILD_OUT="${WORKDIR}/out" \
+		./ci/gen-modules-load.sh ci/modules.load.stock out/.config \
+			pkg/loadlist pkg/modules-intree pkg/modules-vendor
 }
 
 # -------------------------------------------------------------------- main
