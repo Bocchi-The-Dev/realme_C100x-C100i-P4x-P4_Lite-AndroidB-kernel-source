@@ -158,10 +158,18 @@ cd "${KSRC}" || exit 1
 # in-tree drivers/unisoc_platform/sprd_disp, which `make modules` already
 # produced into modules-intree, so building both would ship two modules with
 # the same name.
-mapfile -t UNITS < <(find kernel_modules -name Kbuild -printf '%h\n' \
-	| sort -u | grep -v '/display/dispc$' | grep -v '/mali/csf/ipa_control$' \
-	| grep -v '/gpu/midgard/mali$' | grep -v '/gpu/gondul/mali$' \
-	| grep -v '/gpu/natt/mali/csf$')
+# UNITS_FILE lets you hand the script an explicit list of units, which is how a
+# single unit gets exercised through the REAL builder -- per-unit overrides, all
+# three build mechanisms, the BSP vars and the counting -- instead of through a
+# hand-rolled make invocation that proves only that the source compiles.
+if [ -n "${UNITS_FILE:-}" ]; then
+	mapfile -t UNITS <"${UNITS_FILE}"
+else
+	mapfile -t UNITS < <(find kernel_modules -name Kbuild -printf '%h\n' \
+		| sort -u | grep -v '/display/dispc$' | grep -v '/mali/csf/ipa_control$' \
+		| grep -v '/gpu/midgard/mali$' | grep -v '/gpu/gondul/mali$' \
+		| grep -v '/gpu/natt/mali/csf$')
+fi
 
 echo "discovered ${#UNITS[@]} external module units (parallel=${JOBS}, timeout=${UNIT_TIMEOUT}s each)"
 echo "skipping kernel_modules/kernel5.15/display/dispc -- duplicate of in-tree sprd-drm"
