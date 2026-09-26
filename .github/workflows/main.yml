@@ -50,11 +50,14 @@ jobs:
           # Guard against silently building with the runner's system clang.
           which clang | grep -q "${CLANG_DIR}" || { echo "WRONG clang on PATH"; exit 1; }
 
-      # gki_defconfig is the GKI 2.0 base; sprd_gki_qogirn6pro.fragment is the
-      # Unisoc qogirn6pro/ums9230 (our SoC, T606) vendor fragment.  It sets
+      # Use the vendor's own ums9230 config pairing: gki_defconfig (GKI 2.0 base)
+      # merged with sprd_gki_sharkl6.fragment (the fragment the vendor's
+      # build.config.gki.aarch64.ums9230_* uses for this SoC).  It sets
       # CONFIG_ARM_SPRD_CPUFREQ_V2=m -- the TEE DVFS driver as a MODULE, which
-      # is the configuration that boots correctly.  (Built-in =y wedges the
-      # boot before USB comes up on this platform.)
+      # is the configuration that boots (built-in =y wedges the boot before USB).
+      # The DTS side is a different family name for the same SoC gen: our board
+      # is qogirl6, which is the branch of arch/arm64/boot/dts/sprd/Makefile that
+      # carries the ums9230-1h10 dtbo targets.  So BSP_BUILD_FAMILY=qogirl6.
       - name: Generate config
         run: |
           export PATH="${CLANG_DIR}/bin:${PATH}"
@@ -63,20 +66,34 @@ jobs:
           mkdir -p out
           ./scripts/kconfig/merge_config.sh -m -O out \
             arch/arm64/configs/gki_defconfig \
-            arch/arm64/configs/sprd_gki_qogirn6pro.fragment
+            arch/arm64/configs/sprd_gki_sharkl6.fragment
           make LLVM=1 LLVM_IAS=1 ARCH=arm64 O=out olddefconfig
           grep -E "CONFIG_ARM_SPRD_CPUFREQ_V2|CONFIG_ARCH_SPRD" out/.config
           echo "kernelrelease: $(make LLVM=1 ARCH=arm64 O=out -s kernelrelease)"
 
-      # Image + the ums9230 device DTB/DTBO.  The device uses a base DTB plus a
-      # DTBO overlay (androidboot.dtbo_idx on the running device), so both are
-      # needed: ums9230-base.dtb and ums9230-1h10-overlay.dtbo.
-      - name: Build kernel + DTB/DTBO
+      # The kernel Image is the main GKI deliverable and builds cleanly.
+      - name: Build kernel Image
         run: |
           export PATH="${CLANG_DIR}/bin:${PATH}"
-          make LLVM=1 LLVM_IAS=1 ARCH=arm64 O=out -j$(nproc) \
-            Image dtbs
+          make LLVM=1 LLVM_IAS=1 ARCH=arm64 O=out BSP_BUILD_FAMILY=qogirl6 \
+            -j$(nproc) Image
           ls -la out/arch/arm64/boot/Image
+
+      # DTB/DTBO: best-effort.  NOTE: this tree's scripts/Makefile.build does
+      #   include scripts/Makefile.dtbo
+      # whenever any dtb-y is set (so even unrelated dirs like allwinner trip
+      # it), but scripts/Makefile.dtbo is NOT present anywhere in the published
+      # repo.  Until that vendor file is recovered, `make dtbs` cannot succeed.
+      # We still attempt it (in case the include is bypassed) and report, but we
+      # do NOT gate the kernel build on it -- the DTB is a separate open item.
+      - name: Attempt DTB/DTBO (best effort)
+        continue-on-error: true
+        run: |
+          export PATH="${CLANG_DIR}/bin:${PATH}"
+          make LLVM=1 LLVM_IAS=1 ARCH=arm64 O=out BSP_BUILD_FAMILY=qogirl6 \
+            -j$(nproc) dtbs || echo "::warning::make dtbs failed (missing scripts/Makefile.dtbo); DTB still pending"
+          find out/arch/arm64/boot/dts -name "ums9230-base.dtb" \
+               -o -name "ums9230-1h10-overlay.dtbo" 2>/dev/null | head
           ls -la out/arch/arm64/boot/dts/sprd/ums9230-base.dtb 2>/dev/null || \
             find out/arch/arm64/boot/dts -name "ums9230-base.dtb"
           find out/arch/arm64/boot/dts -name "ums9230-1h10-overlay.dtbo" -o \
