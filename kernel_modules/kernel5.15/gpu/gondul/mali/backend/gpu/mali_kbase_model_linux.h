@@ -49,8 +49,6 @@
  * Include Model definitions
  */
 
-#if IS_ENABLED(CONFIG_MALI_NO_MALI)
-#include <backend/gpu/mali_kbase_model_dummy.h>
 /*
  * enum model_linux_irqs is declared in the uapi header, not here.  Without
  * this include the enum is unknown at the point gpu_device_raise_irq() is
@@ -58,9 +56,17 @@
  * -Werror=visibility fails the build:
  *   declaration of 'enum model_linux_irqs' will not be visible outside of
  *   this function [-Werror,-Wvisibility]
- * The uapi header is self-contained (just the enum), so this is safe.
+ *
+ * This MUST sit outside the CONFIG_MALI_NO_MALI conditional below.  An earlier
+ * attempt anchored the include on the next line, which put it inside that #if,
+ * and since CONFIG_MALI_NO_MALI is not set the include was compiled out and
+ * the error survived unchanged.  The uapi header is self-contained (just the
+ * enum), so including it unconditionally is safe.
  */
 #include <backend/gpu/mali_kbase_model_linux_uapi.h>
+
+#if IS_ENABLED(CONFIG_MALI_NO_MALI)
+#include <backend/gpu/mali_kbase_model_dummy.h>
 #endif /* IS_ENABLED(CONFIG_MALI_NO_MALI) */
 
 #if !IS_ENABLED(CONFIG_MALI_REAL_HW)
