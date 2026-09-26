@@ -121,7 +121,12 @@ jobs:
       # the "For UPSTREAM or AiAiAi" branch and built 4 unrelated DTBs.
       # These are reference artifacts only: the board's dtb/dtbo partitions are
       # empty and boot.img holds no FDT, so the live device tree is the stock
-      # Transsion X6525 one and we never flash ours (the 1h10 overlay is the
+      # Transsion X6525 one and we never flash ours.  We now build the _go
+      # variant, whose compatible (sprd,ums9230-1h10-go) DOES match the board,
+      # but the stock overlay additionally carries Transsion's own patches
+      # (sprd,sc-id names the X6525, and board_id is <0x1900> where ours says
+      # <0x190000>), so ours is still not a drop-in for the stock entry.  The
+      # original note that the 1h10 overlay is the
       # realme reference board -- GC9305 SPI QVGA, not our nt36525b+td4160).
       # A DTB problem must therefore never block the Image artifact.
       - name: Build DTB/DTBO
@@ -132,7 +137,7 @@ jobs:
             -j$(nproc) dtbs || echo "WARN: dtbs failed (reference artifact only, continuing)"
           echo "=== ums9230 device tree artifacts (best effort) ==="
           for f in out/arch/arm64/boot/dts/sprd/ums9230-base.dtb \
-                   out/arch/arm64/boot/dts/sprd/ums9230-1h10-overlay.dtbo; do
+                   out/arch/arm64/boot/dts/sprd/ums9230-1h10_go-overlay.dtbo; do
             if [ -e "$f" ]; then ls -la "$f"; else echo "  MISSING $f"; fi
           done
 
@@ -191,7 +196,17 @@ jobs:
           cp out/arch/arm64/boot/Image pkg/boot-Image/ 2>/dev/null || true
           find out/arch/arm64/boot/dts -name "ums9230-base.dtb" \
             -exec cp {} pkg/dtb/ \; 2>/dev/null || true
-          find out/arch/arm64/boot/dts -name "ums9230-1h10-overlay.dtbo" \
+          # The _go variant, NOT the plain one.  The board's own overlay is
+          # decompiled from the stock dtbo partition (entry 18) and says
+          #   model      = "Spreadtrum UMS9230-1H10-GO Board";
+          #   compatible = "sprd,ums9230-1h10-go";
+          #   sprd,sc-id = "ums9230 X6525";
+          # while the plain overlay says compatible = "sprd,ums9230-1h10" and
+          # sc-id "ums9230 1h10 1000".  compatible is the field drivers match
+          # on, so the plain overlay is simply the wrong board.  Both variants
+          # were always built (arch/arm64/boot/dts/sprd/Makefile lists both);
+          # only the plain one was being collected.
+          find out/arch/arm64/boot/dts -name "ums9230-1h10_go-overlay.dtbo" \
             -exec cp {} pkg/dtb/ \; 2>/dev/null || true
           # In-tree =m modules: these are the ones the board loads at runtime.
           # Exclude out/vendor_modules -- the previous step stages its output
