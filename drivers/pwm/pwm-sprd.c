@@ -367,6 +367,16 @@ static int sprd_pwm_remove(struct platform_device *pdev)
 static const struct of_device_id sprd_pwm_of_match[] = {
 	{ .compatible = "sprd,ums512-pwm", 	.data = (void *)&sharkl5pro_data},
 	{ .compatible = "sprd,ums9620-pwm", 	.data = (void *)&qogirn6pro_data},
+	/*
+	 * ums9230 (qogirl6) AON PWM.  The bootloader supplied base device tree
+	 * names this node "sprd,qogirl6-pwm" / "sprd,sharkl5pro-pwm"; this tree's
+	 * dtsi names it "sprd,ums9230-pwm" with "sprd,ums512-pwm" as fallback.
+	 * The base tree is not ours to change (dtb partition is all zeros, the
+	 * SoC tree comes from U-Boot), so accept what the hardware presents.
+	 * sharkl5pro_data is the vendor's own choice for this SoC generation.
+	 */
+	{ .compatible = "sprd,qogirl6-pwm", 	.data = (void *)&sharkl5pro_data},
+	{ .compatible = "sprd,sharkl5pro-pwm", 	.data = (void *)&sharkl5pro_data},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, sprd_pwm_of_match);

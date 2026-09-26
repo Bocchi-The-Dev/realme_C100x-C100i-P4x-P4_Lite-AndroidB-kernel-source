@@ -63,6 +63,15 @@ static struct of_device_id gsp_dt_ids[] = {
 	 .data = (void *)&gsp_r8p0_core_ops},
 	{.compatible = "sprd,gsp-r9p0-qogirn6pro",
 	.data = (void *)&gsp_r9p0_core_ops},
+	/*
+	 * ums9230 (qogirl6) GSP core.  The bootloader supplied base device tree
+	 * calls it "sprd,gsp-r8p0-qogirl6".  Same r8p0 silicon revision as
+	 * sharkl5pro, so the same core ops apply.  The base tree is not ours to
+	 * change: the board's dtb partition is all zeros and boot.img holds no
+	 * FDT, so the SoC-level tree comes from U-Boot.
+	 */
+	{.compatible = "sprd,gsp-r8p0-qogirl6",
+	 .data = (void *)&gsp_r8p0_core_ops},
 	{},
 };
 MODULE_DEVICE_TABLE(of, gsp_dt_ids);

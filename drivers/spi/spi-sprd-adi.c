@@ -937,6 +937,27 @@ static const struct of_device_id sprd_adi_of_match[] = {
 		.compatible = "sprd,ums512-adi",
 		.data = &ums512_data,
 	},
+	/*
+	 * The AON SPI bus on ums9230 (qogirl6) is described by the bootloader
+	 * supplied base device tree as "sprd,qogirl6-adi" / "sprd,sharkl5pro-adi",
+	 * not as the "sprd,ums9230-adi" our own dtsi uses.  We cannot change that
+	 * base: the board's dtb partition is all zeros and boot.img carries no
+	 * FDT, so the SoC-level tree comes from U-Boot.  Without these aliases the
+	 * AON SPI never binds, pmic@0 underneath it never probes, and the board
+	 * has no regulators at all.
+	 *
+	 * ums512_data is the correct description: this tree's own
+	 * ums9230.dtsi lists "sprd,ums9230-adi" with "sprd,ums512-adi" as its
+	 * fallback, so the vendor already routes this SoC to ums512_data.
+	 */
+	{
+		.compatible = "sprd,qogirl6-adi",
+		.data = &ums512_data,
+	},
+	{
+		.compatible = "sprd,sharkl5pro-adi",
+		.data = &ums512_data,
+	},
 	{
 		.compatible = "sprd,ums9620-adi",
 		.data = &ums9620_data,

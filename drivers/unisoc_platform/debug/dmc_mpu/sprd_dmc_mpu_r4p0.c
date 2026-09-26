@@ -345,6 +345,14 @@ static int sprd_dmc_mpu_remove(struct platform_device *pdev)
 
 static const struct of_device_id sprd_dmc_mpu_of_match[] = {
 	{ .compatible = "sprd,dmc-mpu", },
+	/*
+	 * ums9230 (qogirl6) DDR controller: the bootloader supplied base device
+	 * tree calls this node "sprd,qogirl6-dmc-mpu" while this tree's dtsi calls
+	 * it "sprd,dmc-mpu".  The base tree cannot be changed (the board's dtb
+	 * partition is all zeros and boot.img carries no FDT -- the SoC tree comes
+	 * from U-Boot), so accept the name the hardware actually presents.
+	 */
+	{ .compatible = "sprd,qogirl6-dmc-mpu", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sprd_dmc_mpu_of_match);
