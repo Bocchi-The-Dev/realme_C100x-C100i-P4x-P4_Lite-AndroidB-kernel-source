@@ -183,11 +183,34 @@ cd "${KSRC}" || exit 1
 #    with "could not open MODULE.symvers", so we stage an empty one and SAY SO,
 #    rather than either aborting the build or pretending the dependency is met.
 
-# Modules the vendor Makefiles expect to find under $(BSP_MODULES_OUT).
-STAGE_PROVIDERS="sprd-ion sprd-dmabuf"
+# Providers that are built IN TREE by `make modules` rather than as units, so
+# they have no $(BSP_MODULES_OUT) directory of their own and must be staged.
+#
+# In-tree modules do NOT get a per-directory Module.symvers: kbuild aggregates
+# every in-tree module's exports into $(KBUILD)/Module.symvers.  An earlier
+# version looked for out/drivers/.../Module.symvers, does not exist, and
+# reported "cannot stage" for a module that had in fact been built.  So filter
+# the aggregate instead: field 3 of a symvers line is the module path, e.g.
+#   0xa88a8663<TAB>sprd_ion_map_kernel<TAB>drivers/staging/android/ion/sprd/sprd-ion<TAB>EXPORT_SYMBOL
+# Filtering per module keeps the undefined-symbol check strict.  Handing over
+# the whole aggregate would be easier and would also make the build pass, but it
+# would let modpost resolve symbols from unrelated modules and so hide real
+# ordering bugs.
+STAGE_PROVIDERS="sprd-ion"
 
-# Units that must be built before others, in this order.
+# Units that must be built before others, in this order.  Read off the
+# KBUILD_EXTRA_SYMBOLS lines in the consumers' Makefiles:
+#   dmabufheap    -> sprd-dmabuf            (provider for core, cam_sys, cpp)
+#   flash_drv     -> sprd_flash_drv         (provider for core, cam_sys)
+#   camera/power  -> sprd_camsys_pw_domain  (provider for sensor, core, cam_sys, cpp)
+#   camera/sensor -> sprd_sensor            (provider for core, cam_sys)
+#   camera/core   -> sprd_camera            (provider for cpp!)
+#   camera/cam_sys-> sprd_camsys
+#   camera/cpp    -> sprd_cpp
+# Note cpp depends on sprd_camera, so camera/core must precede it.
 ORDERED_UNITS="
+kernel_modules/kernel5.15/dmabufheap
+kernel_modules/common/camera/flash/flash_drv
 kernel_modules/common/camera/power
 kernel_modules/common/camera/sensor
 kernel_modules/common/camera/core
@@ -196,21 +219,25 @@ kernel_modules/common/camera/cpp
 "
 
 stage_intree_symvers() {
-	local m ko src dst
+	local m dst n aggregate
+	aggregate="${KBUILD}/Module.symvers"
 	for m in ${STAGE_PROVIDERS}; do
-		ko=$(find "${KBUILD}" -name "${m}.ko" -print -quit 2>/dev/null)
-		if [ -z "${ko}" ]; then
-			echo "  !! ${m}.ko not built in-tree -- ${m} symbols will be unresolved"
+		dst="${MODOUT}/${m}"
+		mkdir -p "${dst}"
+		if [ ! -f "${aggregate}" ]; then
+			echo "  !! ${aggregate} missing -- cannot stage ${m}"
+			: >"${dst}/Module.symvers"
 			continue
 		fi
-		src="$(dirname "${ko}")/Module.symvers"
-		dst="${MODOUT}/${m}"
-		if [ -f "${src}" ]; then
-			mkdir -p "${dst}"
-			cp -f "${src}" "${dst}/Module.symvers"
-			echo "  staged ${m}/Module.symvers  (from ${src#"${KBUILD}/"})"
+		# Field 3 is the module path; match the bare name at the end of it.
+		awk -F'\t' -v m="${m}" '$3 == m || $3 ~ ("/" m "$")' \
+			"${aggregate}" >"${dst}/Module.symvers"
+		n=$(wc -l <"${dst}/Module.symvers")
+		if [ "${n}" -gt 0 ]; then
+			echo "  staged ${m}/Module.symvers (${n} exported symbols, from the in-tree aggregate)"
 		else
-			echo "  !! ${src} missing -- cannot stage ${m}"
+			echo "  !! ${m} contributed no symbols to ${aggregate}"
+			echo "     Is ${m}.ko actually built? Check: find out -name '${m}.ko'"
 		fi
 	done
 }

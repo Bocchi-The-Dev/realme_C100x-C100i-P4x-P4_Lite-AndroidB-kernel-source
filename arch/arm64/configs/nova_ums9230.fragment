@@ -176,10 +176,14 @@ CONFIG_ION_SYSTEM_HEAP=y
 CONFIG_ION_CMA_HEAP=m
 CONFIG_ION_SPRD=m
 
-# CONFIG_UNISOC_DMABUF=m -> sprd-dmabuf.ko
-#   Another module.load entry with no config behind it, found the same way as
-#   the ION group.  drivers/unisoc_platform/dmabufheap/Makefile.  It is a
-#   provider, not a leaf: common/camera/{core,cam_sys,cpp} all do
+# CONFIG_UNISOC_DMABUF is deliberately NOT set.
+#   An earlier revision enabled it, which was wrong.  sprd-dmabuf is ALSO built
+#   by the vendor unit kernel_modules/kernel5.15/dmabufheap, and that unit is
+#   the one that matters: it stages into $(BSP_MODULES_OUT)/sprd-dmabuf/,
+#   which is exactly where common/camera/{core,cam_sys,cpp} look for
 #     KBUILD_EXTRA_SYMBOLS += $(BSP_MODULES_OUT)/sprd-dmabuf/Module.symvers
-#   so until this exists the camera stack cannot resolve its symbols.
-CONFIG_UNISOC_DMABUF=m
+#   Enabling the Kconfig built a SECOND sprd-dmabuf.ko from
+#   drivers/unisoc_platform/dmabufheap, so the flash set would carry two
+#   modules with the same name -- the same trap as display/dispc, which is
+#   already excluded for exactly this reason.  The camera units need the
+#   vendor unit, so that is the one to build.
