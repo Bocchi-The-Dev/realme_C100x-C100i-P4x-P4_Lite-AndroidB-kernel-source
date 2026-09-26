@@ -47,6 +47,22 @@ CONFIG_DRM_SPRD_DPU0=y
 CONFIG_DRM_SPRD_DSI=y
 CONFIG_UNISOC_GSP=m
 
+# --- WiFi / WCN (integrated Marlin) ---------------------------------------
+# sprd_gki_sharkl6.fragment sets SC23XX (the parent) but leaves WCN_INTEG off,
+# so sprdwcn builds with no transport selected and WiFi never enumerates.
+# The X6525 uses the INTEGRATED Marlin WCN, not a PCIe one:
+#   * our live device tree has cpwcn-btwf compatible = "unisoc,integrate_marlin"
+#     and sipc-virt/core@3/wcn_bt compatible = "sprd,wcn_internal_chip";
+#   * the tree's own arch/arm64/boot/dts/sprd/ums9230/wcn.dtsi uses those exact
+#     same two compatibles, and drivers/unisoc_platform/sprdwcn/sprd_wcn.c
+#     binds integrate_marlin to g_integ_wcn_data;
+#   * the running 5.4 device loads sprd_wlan_combo, sprdbt_tty and wcn_bsp and
+#     has WCN_INTEG built in.
+# PCIE_SPRD stays off, matching the device (the WCN is on-chip, not over PCIe).
+# SC2355 is deliberately left off: the device has it off too, and the driver
+# probes the Marlin revision at runtime.
+CONFIG_WCN_INTEG=y
+
 # --- Ramoops / pstore (crash persistence) ----------------------------------
 # Keep the kernel's oops/panic records in RAM across reboot.  This is our ONLY
 # diagnostic channel: the board has no dtb/dtbo partition, no FDT inside
