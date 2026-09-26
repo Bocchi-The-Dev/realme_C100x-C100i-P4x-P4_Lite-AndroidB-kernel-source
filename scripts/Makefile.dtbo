@@ -1,0 +1,51 @@
+# scripts/Makefile.dtbo -- DTBO (device-tree overlay) build rule.
+#
+# Recovered verbatim from our own known-good 5.4 tree for this SoC:
+#   github.com/Bocchi-The-Dev/kernel_transsion_ums9230  (scripts/Makefile.dtbo)
+# The public realme 5.15 GKI source references this file from
+# scripts/Makefile.build (line 57, whenever dtb-y is set) but never shipped it,
+# so "make dtbs" could not run.  This is the same Unisoc/SPRD mechanism that
+# builds the ums9230-1h10 overlay (X.dtbo-base := ums9230-base.dtb).
+
+__dtbo := $(sort $(dtbo-y))
+
+dtbo-base	:= $(sort $(foreach m,$(__dtbo),$($(m)-base)))
+dtbo := $(foreach m,$(__dtbo),$(if $($(m)-base),$(m)))
+
+__dtbo     := $(addprefix $(obj)/,$(__dtbo))
+dtbo-base	:= $(addprefix $(obj)/,$(dtbo-base))
+dtbo	:= $(addprefix $(obj)/,$(dtbo))
+
+ifneq ($(DTC_OVERLAY_TEST_EXT),)
+DTC_OVERLAY_TEST = $(DTC_OVERLAY_TEST_EXT)
+quiet_cmd_dtbo_verify   = VERIFY  $@
+cmd_dtbo_verify = $(foreach m,\
+	$(addprefix $(obj)/,$($(@F)-base)),\
+		$(if $(m),\
+			$(DTC_OVERLAY_TEST) $(m) $@ \
+			$(dot-target).$(subst /,-,$(patsubst $(obj)/%.dtb,%,$(m))).tmp;))\
+			true
+else
+cmd_dtbo_verify = true
+endif
+
+ifneq ($(DTC_OVERLAY_VTS_EXT),)
+DTC_OVERLAY_VTS = $(DTC_OVERLAY_VTS_EXT)
+quiet_cmd_dtbo_vts = VTS     $@
+cmd_dtbo_vts = $(foreach m,\
+	$(addprefix $(obj)/,$($(@F)-base)),\
+		$(if $(m),\
+			$(DTC_OVERLAY_VTS) $(dot-target).$(subst /,-,$(patsubst $(obj)/%.dtb,%,$(m))).tmp $@;))\
+			true
+else
+cmd_dtbo_vts = true
+endif
+
+$(obj)/%.dtbo: $(src)/%.dts $(DTC) FORCE
+	$(call if_changed_dep,dtc,dtb)
+	$(call if_changed,dtbo_verify)
+	$(call if_changed,dtbo_vts)
+
+$(call multi_depend, $(dtbo), , -base)
+
+always +=  $(dtbo)

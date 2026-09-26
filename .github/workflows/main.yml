@@ -79,25 +79,18 @@ jobs:
             -j$(nproc) Image
           ls -la out/arch/arm64/boot/Image
 
-      # DTB/DTBO: best-effort.  NOTE: this tree's scripts/Makefile.build does
-      #   include scripts/Makefile.dtbo
-      # whenever any dtb-y is set (so even unrelated dirs like allwinner trip
-      # it), but scripts/Makefile.dtbo is NOT present anywhere in the published
-      # repo.  Until that vendor file is recovered, `make dtbs` cannot succeed.
-      # We still attempt it (in case the include is bypassed) and report, but we
-      # do NOT gate the kernel build on it -- the DTB is a separate open item.
-      - name: Attempt DTB/DTBO (best effort)
-        continue-on-error: true
+      # DTB/DTBO.  scripts/Makefile.dtbo was recovered from our known-good 5.4
+      # tree (the public realme source references it but never shipped it), so
+      # `make dtbs` now works.  The device boots from a base DTB plus a DTBO
+      # overlay (androidboot.dtbo_idx), so both are required to boot.
+      - name: Build DTB/DTBO
         run: |
           export PATH="${CLANG_DIR}/bin:${PATH}"
           make LLVM=1 LLVM_IAS=1 ARCH=arm64 O=out BSP_BUILD_FAMILY=qogirl6 \
-            -j$(nproc) dtbs || echo "::warning::make dtbs failed (missing scripts/Makefile.dtbo); DTB still pending"
-          find out/arch/arm64/boot/dts -name "ums9230-base.dtb" \
-               -o -name "ums9230-1h10-overlay.dtbo" 2>/dev/null | head
-          ls -la out/arch/arm64/boot/dts/sprd/ums9230-base.dtb 2>/dev/null || \
-            find out/arch/arm64/boot/dts -name "ums9230-base.dtb"
-          find out/arch/arm64/boot/dts -name "ums9230-1h10-overlay.dtbo" -o \
-               -name "ums9230-1h10-overlay.dtb" | head
+            -j$(nproc) dtbs
+          echo "=== ums9230 device tree artifacts ==="
+          ls -la out/arch/arm64/boot/dts/sprd/ums9230-base.dtb
+          ls -la out/arch/arm64/boot/dts/sprd/ums9230-1h10-overlay.dtbo
 
       # GKI 2.0 vendor modules (audio/display/gpu/input/touchscreen/wcn/...),
       # built out-of-tree against the just-built O=out tree.  These carry the

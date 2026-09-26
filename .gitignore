@@ -20,6 +20,9 @@
 *.dt.yaml
 *.dtb
 *.dtbo
+# the DTBO build rule itself is named "Makefile.dtbo" and must be tracked
+# (it is what scripts/Makefile.build includes to build .dtbo overlays)
+!/scripts/Makefile.dtbo
 *.dtb.S
 *.dwo
 *.elf
