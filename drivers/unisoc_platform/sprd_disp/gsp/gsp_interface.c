@@ -11,7 +11,6 @@
 #include "gsp_debug.h"
 #include "gsp_interface.h"
 #include "gsp_interface/gsp_interface_sharkl5pro.h"
-#include "gsp_interface/gsp_interface_qogirn6pro.h"
 
 static struct gsp_interface_ops gsp_interface_sharkl5pro_ops = {
 	.parse_dt = gsp_interface_sharkl5pro_parse_dt,
@@ -23,15 +22,8 @@ static struct gsp_interface_ops gsp_interface_sharkl5pro_ops = {
 	.dump = gsp_interface_sharkl5pro_dump,
 };
 
-static struct gsp_interface_ops gsp_interface_qogirn6pro_ops = {
-	.parse_dt = gsp_interface_qogirn6pro_parse_dt,
-	.init = gsp_interface_qogirn6pro_init,
-	.deinit = gsp_interface_qogirn6pro_deinit,
-	.prepare = gsp_interface_qogirn6pro_prepare,
-	.unprepare = gsp_interface_qogirn6pro_unprepare,
-	.reset = gsp_interface_qogirn6pro_reset,
-	.dump = gsp_interface_qogirn6pro_dump,
-};
+/* The qogirn6pro interface is not built (see Makefile): it pairs with the
+ * r9p0 core, which does not compile against this tree's gsp_r9p0_cfg.h. */
 
 int gsp_interface_is_attached(struct gsp_interface *interface)
 {
@@ -73,7 +65,9 @@ int gsp_interface_attach(struct gsp_interface **interface, struct gsp_dev *gsp)
 	gsp_interface_copy_name(tmp, name);
 	GSP_INFO("gsp interface name: %s\n", name);
 
-	if (strcmp(GSP_SHARKL5PRO, name) == 0) {
+	if (strcmp(GSP_SHARKL5PRO, name) == 0 ||
+	    strcmp(GSP_QOGIRL6, name) == 0) {
+		/* qogirl6 is r8p0 silicon: same core, same interface. */
 		*interface = kzalloc(sizeof(struct gsp_interface_sharkl5pro),
 				     GFP_KERNEL);
 		if (IS_ERR_OR_NULL(*interface)) {
@@ -82,15 +76,6 @@ int gsp_interface_attach(struct gsp_interface **interface, struct gsp_dev *gsp)
 		}
 		memset(*interface, 0, sizeof(struct gsp_interface_sharkl5pro));
 		(*interface)->ops = &gsp_interface_sharkl5pro_ops;
-	} else if (strcmp(GSP_QOGIRN6PRO, name) == 0) {
-		*interface = kzalloc(sizeof(struct gsp_interface_qogirn6pro),
-					GFP_KERNEL);
-		if (IS_ERR_OR_NULL(*interface)) {
-			GSP_ERR("alloc interface[%s] failed\n", name);
-			goto error;
-		}
-		memset(*interface, 0, sizeof(struct gsp_interface_qogirn6pro));
-		(*interface)->ops = &gsp_interface_qogirn6pro_ops;
 	} else {/* can add other interface with "else if" */
 		GSP_WARN("no match interface for gsp\n");
 		goto error;

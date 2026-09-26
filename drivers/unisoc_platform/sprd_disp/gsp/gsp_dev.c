@@ -25,7 +25,6 @@
 #include "gsp_sysfs.h"
 #include "gsp_workqueue.h"
 #include "gsp_r8p0/gsp_r8p0_core.h"
-#include "gsp_r9p0/gsp_r9p0_core.h"
 
 #include "../sprd_drm.h"
 #include "../sprd_drm_gsp.h"
@@ -44,25 +43,16 @@ static struct gsp_core_ops gsp_r8p0_core_ops = {
 	.dump = gsp_r8p0_core_dump,
 };
 
-static struct gsp_core_ops gsp_r9p0_core_ops = {
-	.parse_dt = gsp_r9p0_core_parse_dt,
-	.alloc = gsp_r9p0_core_alloc,
-	.init = gsp_r9p0_core_init,
-	.copy = gsp_r9p0_core_copy_cfg,
-	.trigger = gsp_r9p0_core_trigger,
-	.release = gsp_r9p0_core_release,
-	.enable = gsp_r9p0_core_enable,
-	.disable = gsp_r9p0_core_disable,
-	.intercept = gsp_r9p0_core_intercept,
-	.reset = gsp_r9p0_core_reset,
-	.dump = gsp_r9p0_core_dump,
-};
+/* The r9p0 core is not built (see Makefile): it does not compile against this
+ * tree's include/uapi/drm/gsp_r9p0_cfg.h, and it only ever applied to
+ * qogirn6pro, a different SoC generation than our qogirl6 target. */
 
 static struct of_device_id gsp_dt_ids[] = {
 	{.compatible = "sprd,gsp-r8p0-sharkl5pro",
 	 .data = (void *)&gsp_r8p0_core_ops},
-	{.compatible = "sprd,gsp-r9p0-qogirn6pro",
-	.data = (void *)&gsp_r9p0_core_ops},
+	/*
+	 * The r9p0 / qogirn6pro entry is gone with the r9p0 core (see Makefile).
+	 */
 	/*
 	 * ums9230 (qogirl6) GSP core.  The bootloader supplied base device tree
 	 * calls it "sprd,gsp-r8p0-qogirl6".  Same r8p0 silicon revision as

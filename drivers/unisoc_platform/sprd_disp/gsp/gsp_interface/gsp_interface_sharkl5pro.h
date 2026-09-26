@@ -12,6 +12,14 @@
 
 
 #define GSP_SHARKL5PRO "sharkl5pro"
+/*
+ * qogirl6 (ums9230) is the same r8p0 GSP silicon and uses this same
+ * interface.  Its live device tree says compatible = "sprd,gsp-r8p0-qogirl6",
+ * and gsp_interface_copy_name() strips two dash-separated tokens, so the name
+ * it dispatches on is "qogirl6" -- it must be accepted here or the driver
+ * bails out with "no match interface for gsp".
+ */
+#define GSP_QOGIRL6 "qogirl6"
 
 #define SHARKL5PRO_AP_AHB_DISP_EB_NAME	  ("clk_ap_ahb_disp_eb")
 
