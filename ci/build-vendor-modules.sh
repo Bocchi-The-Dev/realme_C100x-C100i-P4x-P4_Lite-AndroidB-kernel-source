@@ -43,7 +43,20 @@ build_one() {
 	local tag log built=0 name
 	tag=$(echo "${d}" | tr '/' '_')
 	log="${MODOUT}/${tag}.log"
-	name=$(basename "${d}")
+	# The OUTPUT name, which is NOT the directory name.  For
+	# kernel_modules/common/camera/core the directory is "core" but the module is
+	# sprd_camera, because Kbuild sets "KO_MODULE_NAME := sprd_camera" and the
+	# vendor Makefile stages to $(BSP_MODULES_OUT)/$(KO_MODULE_NAME).
+	#
+	# This is not a cosmetic detail.  The first version of this purge used
+	# basename, so for that unit it deleted ${MODOUT}/core -- which does not exist
+	# -- and left ${MODOUT}/sprd_camera alone.  A stale 35 MB sprd_camera.ko
+	# therefore survived a failed rebuild, got packaged, and was counted as
+	# COVERED by ci/check-module-coverage.sh while camera/core was sitting in the
+	# FAILED list.  Two sources disagreeing is exactly the signal to chase.
+	name=$(sed -n 's/^KO_MODULE_NAME[[:space:]]*[:?+]\{0,1\}=[[:space:]]*\([A-Za-z0-9_-]\+\).*/\1/p' \
+		"${KSRC}/${d}/Kbuild" 2>/dev/null | head -1)
+	[ -n "${name}" ] || name=$(basename "${d}")
 
 	# Purge this unit's previous output BEFORE building.
 	#
@@ -60,7 +73,10 @@ build_one() {
 	# "all:" wrappers pass M=$(SRC) and so write beside the source, and the bare
 	# kbuild fallback writes under the source tree too.
 	rm -rf "${MODOUT:?}/${name}" 2>/dev/null
-	find "${KSRC}/${d}" -maxdepth 1 -name '*.ko' -delete 2>/dev/null
+	# Recursive, not -maxdepth 1: mechanism 2 passes M=$(SRC) to kbuild, so the
+	# .ko lands beside whichever source file it came from, which can be any depth
+	# below the unit directory.
+	find "${KSRC}/${d}" -name '*.ko' -delete 2>/dev/null
 
 	# Per-unit extra make variables.  The GPU needs one, and the reason is
 	# specific: the vendor Makefile defaults CONFIG_MALI_PLATFORM_NAME to
