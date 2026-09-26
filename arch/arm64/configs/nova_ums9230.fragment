@@ -11,3 +11,27 @@
 # plain "disable LTO" is not an option here.
 CONFIG_LTO_CLANG_FULL=n
 CONFIG_LTO_CLANG_THIN=y
+
+# --- Display (hard requirement) -------------------------------------------
+# sprd_gki_sharkl6.fragment line 248 carries `# CONFIG_UNISOC_DISP is not set`,
+# which leaves the whole display stack out of the build -> guaranteed black
+# screen.  The running 5.4 device loads BOTH sprd_drm.ko and sprd_gsp.ko, and
+# the X6525 device tree's display nodes bind to drivers that only exist inside
+# sprd-drm.ko:
+#
+#   soc/ap-ahb/dsi@31100000  compatible = "sprd,qogirl6-dsi-host"
+#     -> drivers/unisoc_platform/sprd_disp/sprd_dsi.c:884
+#   dphy                     compatible = "sprd,qogirl6-dsi-phy"
+#     -> drivers/unisoc_platform/sprd_disp/sprd_dphy.c:237
+#   .../panel                compatible = "sprd,generic-mipi-panel"
+#     -> drivers/unisoc_platform/sprd_disp/sprd_dsi_panel.c:1126 (mipi_dsi_driver)
+#
+# UNISOC_DISP is tristate ("the module will be called sprd_drm"), so keep it =m
+# to match the device's own module set and load order rather than baking a
+# ~1 MB of display driver into the GKI Image.  Note sprd-drm uses
+# disp_trusty.o (CONFIG_TRUSTY_VIRTIO_IPC), so the trusty modules must be
+# insmod'd BEFORE sprd-drm.ko.
+CONFIG_UNISOC_DISP=m
+CONFIG_DRM_SPRD_DPU0=y
+CONFIG_DRM_SPRD_DSI=y
+CONFIG_UNISOC_GSP=m

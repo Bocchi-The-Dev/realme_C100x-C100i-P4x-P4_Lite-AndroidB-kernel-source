@@ -74,6 +74,22 @@ jobs:
           # we really got ThinLTO (and that CFI survived) before spending
           # ~20 min on a build that would die the same way again.
           grep -E "CONFIG_LTO_CLANG_THIN|CONFIG_LTO_CLANG_FULL|CONFIG_CFI_CLANG" out/.config
+          # Assert the board-critical symbols really resolved.  merge_config.sh
+          # + olddefconfig silently carry unknown CONFIG_* lines through into
+          # .config, so grepping for a symbol's mere presence can be fooled by
+          # a phantom line.  Check the _selected value_ instead -- these
+          # decide whether the phone has a display at all.
+          echo "=== board-critical config ==="
+          for sym in UNISOC_DISP DRM_SPRD_DPU0 DRM_SPRD_DSI UNISOC_GSP \
+                    ARM_SPRD_CPUFREQ_V2 TRUSTY_TUI TRUSTY_VIRTIO_IPC \
+                    FUEL_GAUGE_SC27XX; do
+            line=$(grep -E "^CONFIG_${sym}=" out/.config || true)
+            printf '  %-24s %s\n' "$sym" "${line:-*** UNRESOLVED (phantom/absent) ***}"
+            case "$line" in
+              =y|=m) ;;
+              *) echo "::error::CONFIG_${sym} did not resolve to y/m"; exit 1;;
+            esac
+          done
           echo "kernelrelease: $(make LLVM=1 ARCH=arm64 O=out -s kernelrelease)"
 
       # The kernel Image is the main GKI deliverable and builds cleanly.
