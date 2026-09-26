@@ -8,9 +8,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    # NOTE: the `env` context is NOT available inside jobs.<id>.env expressions,
+    # so CLANG_DIR below is a plain string, and the run scripts hardcode the
+    # same literal path/version rather than referencing ${{ env.* }}.
     env:
       CLANG_VERSION: r450784e
-      CLANG_DIR: /tmp/clang-${{ env.CLANG_VERSION }}
+      CLANG_DIR: /tmp/clang-r450784e
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,15 +27,15 @@ jobs:
             libncurses-dev zlib1g-dev libyaml-dev lz4 zstd device-tree-compiler \
             python3 rsync kmod dwarves zip unzip
 
-      # The tree pins CLANG_VERSION=r450784e (build.config.constants).  This
-      # mirror is the same prebuilt the vendored build_5.15.sh uses.
-      - name: Fetch clang-${{ env.CLANG_VERSION }}
+      # The tree pins clang-r450784e (build.config.constants).  This mirror is
+      # the same prebuilt the vendored build_5.15.sh uses.
+      - name: Fetch clang-r450784e
         run: |
           curl -sSL -o /tmp/clang.tar.gz \
-            "https://github.com/ravindu644/Android-Kernel-Tutorials/releases/download/toolchains/clang-${{ env.CLANG_VERSION }}.tar.gz"
-          mkdir -p "$CLANG_DIR"
-          tar xzf /tmp/clang.tar.gz -C "$CLANG_DIR" --strip-components=1
-          echo "$CLANG_DIR/bin" >> "$GITHUB_PATH"
+            "https://github.com/ravindu644/Android-Kernel-Tutorials/releases/download/toolchains/clang-r450784e.tar.gz"
+          mkdir -p "${CLANG_DIR}"
+          tar xzf /tmp/clang.tar.gz -C "${CLANG_DIR}" --strip-components=1
+          echo "${CLANG_DIR}/bin" >> "$GITHUB_PATH"
 
       - name: Show toolchain
         run: |
