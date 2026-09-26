@@ -58,14 +58,15 @@ jobs:
       - name: Generate config
         run: |
           export PATH="${CLANG_DIR}/bin:${PATH}"
+          # merge_config.sh -O requires the output dir to already exist, else it
+          # aborts with "output directory out does not exist".
+          mkdir -p out
           ./scripts/kconfig/merge_config.sh -m -O out \
             arch/arm64/configs/gki_defconfig \
             arch/arm64/configs/sprd_gki_qogirn6pro.fragment
-          cp out/.config .config
-          make LLVM=1 ARCH=arm64 olddefconfig
-          grep -E "CONFIG_ARM_SPRD_CPUFREQ_V2|CONFIG_ARCH_SPRD" out/.config || \
-            grep -E "CONFIG_ARM_SPRD_CPUFREQ_V2|CONFIG_ARCH_SPRD" .config
-          echo "kernelrelease: $(make LLVM=1 ARCH=arm64 -s kernelrelease)"
+          make LLVM=1 LLVM_IAS=1 ARCH=arm64 O=out olddefconfig
+          grep -E "CONFIG_ARM_SPRD_CPUFREQ_V2|CONFIG_ARCH_SPRD" out/.config
+          echo "kernelrelease: $(make LLVM=1 ARCH=arm64 O=out -s kernelrelease)"
 
       # Image + the ums9230 device DTB/DTBO.  The device uses a base DTB plus a
       # DTBO overlay (androidboot.dtbo_idx on the running device), so both are
