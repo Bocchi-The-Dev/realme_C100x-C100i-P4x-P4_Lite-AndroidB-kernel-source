@@ -2161,7 +2161,27 @@ static const struct i2c_device_id aw32257_i2c_id_table[] = {
 MODULE_DEVICE_TABLE(i2c, aw32257_i2c_id_table);
 
 #ifdef CONFIG_OF
+/*
+ * Match BOTH the bare and the vendor-prefixed spelling.
+ *
+ * This table listed only "aw32257", which no device tree uses: the X6525's own
+ * node is
+ *
+ *   i2c@0x20100000/aw32257@6a  { compatible = "awinic,aw32257"; status = "okay"; }
+ *
+ * "aw32257" and "awinic,aw32257" are different strings and of_device_get_match()
+ * compares them exactly, so the entry never matched and the driver could not
+ * bind.  That was invisible while the symbol was unset, and it would have stayed
+ * invisible after simply enabling CONFIG_CHARGER_AW32257: the module would build,
+ * load, and sit there with no bound device, which looks identical to a charger
+ * that is merely idle.
+ *
+ * Upstream Linux uses the "awinic," prefix, so the bare form is the outlier here
+ * rather than the device tree.  Keeping both costs nothing and means a DT that
+ * carries either string works.
+ */
 static const struct of_device_id aw32257_of_match_table[] = {
+	{ .compatible = "awinic,aw32257" },
 	{ .compatible = "aw32257" },
 	{},
 };

@@ -21,6 +21,42 @@
 #   alias was therefore chasing a driver we do not ship.
 #
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# omnivision_td4160 -> omnivision_tcm-modules
+#   NOT a guess about the touch panel.  The 5.4 device loads five touch modules
+#   at once (adaptive_ts, focaltech_ft8722, focaltech_ft8756_spi_ts,
+#   nvt_nt36xxx_spi_ts, omnivision_td4160) because the stock ROM ships every
+#   driver it has and lets probe-fail sort it out, so "it is loaded" says
+#   nothing about which one bound.  The device tree is what answers it: the only
+#   enabled touch node is spi@20150000/transsion-touchscreen@0, and the chip on
+#   it is an Omnivision TD4160.  kernel5.15/touchscreen/odm/omnivision_tcm
+#   declares td4160 in its source and is what the vendor's own ums9230
+#   EXT_MODULES list builds, so that is the 5.15 provider of the same function.
+#   The other four are alternative panels, not this board.
+# ---------------------------------------------------------------------------
+# agdsp_access -> (no separate module; folded into snd-soc-sprd-card)
+#   Recorded because it LOOKS like a gap and is not, and the reason is not
+#   visible from the file list alone.  Our SC2730 codec calls agdsp_access_enable
+#   from ten call sites, and agdsp_access.ko is in neither our build nor the
+#   vendor's 5.15 EXT_MODULES list -- which reads like a module we failed to
+#   build.  It is not: `llvm-nm -u` on the built codec shows no undefined agdsp
+#   symbol, because snd-soc-sprd-card.ko (which we do build, and which the codec
+#   depends on) exports agdsp_access_enable.  The vendor's list carries
+#   audio/sprd_audio/agdsp_pd and nothing else agdsp-shaped, so on 5.15 the
+#   access path lives in the card driver.  A DT node existing
+#   (soc/agcp/agdsp-access) is therefore not evidence of a missing module.
+# ---------------------------------------------------------------------------
+# sprd-top-dvfs -> (genuinely absent from this 5.15 tree; NOT fixed here)
+#   Left unaliased on purpose so it keeps being reported.  The node
+#   aon/topdvfsctrl@64014000 declares compatibles sprd,qogirl6-topdvfs-dev,
+#   sprd,topdvfs-dev and syscon, and no driver in this tree binds any of them;
+#   nothing parses its device-dcdc-cells children (dcdc-mm, dcdc-modem) either.
+#   The top_dvfs_clk in drivers/clk/sprd/ums9230-clk.c is a clock of that name,
+#   not the device, which is an easy false match.  Unlike the entries above this
+#   one is a real functional hole -- MM/modem DCDC voltage control -- and it
+#   would need a new regulator driver, not a config line.  Flagged, not fixed.
+# ---------------------------------------------------------------------------
+misc_sprd_uid:sprd_uid
 sprd_gpu_cooling:sprd_thermal_ctl
 gnss_common_ctl_all:unisoc_gnss_common_ctl_all
 omnivision_td4160:omnivision_tcm-modules

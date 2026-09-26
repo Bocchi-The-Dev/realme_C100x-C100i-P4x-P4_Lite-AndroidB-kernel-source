@@ -176,6 +176,40 @@ CONFIG_ION_SYSTEM_HEAP=y
 CONFIG_ION_CMA_HEAP=m
 CONFIG_ION_SPRD=m
 
+# --- Charging: the two drivers this board's own DT nodes ask for ------------
+#
+# Found by auditing every "ABSENT with no built-in equivalent" entry from
+# ci/check-module-coverage.sh against the live device tree's compatibles and
+# status properties, rather than against their names.  Name-based triage had
+# filed both of these as "other hardware"; both sit on enabled nodes of THIS
+# board:
+#
+#   soc/ap-apb/i2c@0x20100000/aw32257@6a  compatible = "awinic,aw32257"
+#                                         status = "okay"
+#       -> the USB-C charging IC.  Driver: drivers/power/supply/aw32257_charger.c,
+#          builds aw32257_charger.ko, whose name already matches the stock
+#          modules.load entry exactly, so no rename is needed.  Enabling the
+#          symbol was NOT sufficient on its own -- the driver's of_match_table
+#          carried the bare string "aw32257", which never matches the prefixed
+#          one, so it would have built and loaded with nothing bound.  Fixed in
+#          that file; see the comment there.
+#
+#   charger-manager  compatible = "charger-manager"  status = "okay"
+#       -> the multi-charger policy layer that arbitrates between the charging
+#          IC and the fuel gauge.  Driver: drivers/power/supply/charger-manager.c
+#          plus sprd_vote.o, sprd_vchg_detect.o and sprd_fchg_extcon.o, built as
+#          sprd-charger-manager.ko, again matching the stock name exactly.  The
+#          vendor's own sprd_gki_sharkl6.fragment explicitly disables this
+#          symbol; this fragment is merged last and overrides it.
+#
+# Both depend on I2C, which the sharkl6 fragment already selects, so no ordering
+# constraint applies here.  CONFIG_SPRD_UID (sprd_uid.ko, the vendor unit that
+# backs the sprd_uid DT node) is already enabled by the sharkl6 fragment and
+# needs no directive here -- only the rename in ci/module-aliases.stock515, since
+# the stock loader spells that module misc_sprd_uid.ko.
+CONFIG_CHARGER_AW32257=m
+CONFIG_CHARGER_MANAGER=m
+
 # CONFIG_UNISOC_DMABUF is deliberately NOT set.
 #   An earlier revision enabled it, which was wrong.  sprd-dmabuf is ALSO built
 #   by the vendor unit kernel_modules/kernel5.15/dmabufheap, and that unit is
