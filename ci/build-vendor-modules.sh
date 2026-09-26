@@ -52,8 +52,13 @@ build_one() {
 	# says soc/mm/gpu@23100000 compatible = "sprd,mali-natt" on a qogirl6 SoC,
 	# so qogirl6 is the measured value, not a guess.
 	local extra=()
+	# NOTE: ${d} is the full path relative to the repo root, e.g.
+	# "kernel_modules/kernel5.15/gpu/natt/mali" -- NOT "gpu/natt/mali".
+	# An earlier version used the short form and silently matched nothing, so
+	# CONFIG_MALI_PLATFORM_NAME was never passed and the GPU failed again with
+	# the same missing-subdirectory error despite the fix being right.
 	case "${d}" in
-		gpu/natt/mali|gpu/*/mali) extra=("CONFIG_MALI_PLATFORM_NAME=qogirl6") ;;
+		*/gpu/natt/mali) extra=("CONFIG_MALI_PLATFORM_NAME=qogirl6") ;;
 	esac
 
 	# Three mechanisms, because the vendor wrappers in this tree disagree about
