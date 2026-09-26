@@ -205,6 +205,24 @@ jobs:
           echo "vendor modules : $(find pkg/modules-vendor  -name '*.ko' | wc -l)"
           du -sh pkg
 
+      # Does our module set actually satisfy the X6525's loader?
+      #
+      # The stock /vendor/lib/modules/modules.load names 133 modules in
+      # insmod order, but those are 5.4 modules: vermagic
+      # "5.4.210-...-ab665 ... modversions" with CONFIG_MODVERSIONS=y, so their
+      # symbol CRCs belong to that kernel and they cannot load against a 5.15
+      # Image under any circumstances.  Replacing /lib/modules is mandatory,
+      # which makes the rewritten load list a real deliverable rather than an
+      # afterthought -- and this step is how we know what it must contain.
+      #
+      # Deliberately NOT `continue-on-error`.  An earlier version of the vendor
+      # step reported success while producing nothing loadable, and the lesson
+      # was that absence of signal must not read as progress.
+      - name: Check module coverage vs X6525 loader
+        run: |
+          ./ci/check-module-coverage.sh ci/modules.load.stock \
+            pkg/modules-intree pkg/modules-vendor
+
       - name: Upload Image
         uses: actions/upload-artifact@v4
         with:
