@@ -7,7 +7,17 @@
 # so "make dtbs" could not run.  This is the same Unisoc/SPRD mechanism that
 # builds the ums9230-1h10 overlay (X.dtbo-base := ums9230-base.dtb).
 
-__dtbo := $(sort $(dtbo-y))
+# Which variable holds the overlay list differs between trees:
+#   * our 5.4 tree (github.com/Bocchi-The-Dev/kernel_transsion_ums9230) uses
+#     dtbo-$(CONFIG_ARCH_SPRD) += ... in arch/arm64/boot/dts/sprd/Makefile, and
+#     scripts/Makefile.build gates the include on dtbo-y.
+#   * the 5.15 realme source instead uses dtb-$(CONFIG_ARCH_SPRD) += ... and
+#     gates the include on dtb-y.
+# Reading only one of them silently produced ZERO .dtbo files on 5.15: the
+# include fired, but the variable read here was empty.  Accept both, and ignore
+# the plain .dtb entries that live in dtb-y by filtering on the .dtbo suffix.
+# Entries lacking a "<name>-base" hint are dropped further down regardless.
+__dtbo := $(sort $(dtbo-y) $(filter %.dtbo,$(dtb-y)))
 
 dtbo-base	:= $(sort $(foreach m,$(__dtbo),$($(m)-base)))
 dtbo := $(foreach m,$(__dtbo),$(if $($(m)-base),$(m)))
@@ -48,4 +58,8 @@ $(obj)/%.dtbo: $(src)/%.dts $(DTC) FORCE
 
 $(call multi_depend, $(dtbo), , -base)
 
-always +=  $(dtbo)
+# 5.4 called this variable "always"; 5.15 renamed it to "always-y"
+# (scripts/Makefile.build line 18, and it is what feeds $(targets)).  Set both
+# so the file is not silently dead on either tree.
+always-y += $(dtbo)
+always   += $(dtbo)

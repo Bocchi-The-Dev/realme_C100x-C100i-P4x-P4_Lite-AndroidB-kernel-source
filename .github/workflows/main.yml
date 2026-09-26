@@ -103,23 +103,44 @@ jobs:
             -j$(nproc) Image
           ls -la out/arch/arm64/boot/Image
 
-      # DTB/DTBO.  scripts/Makefile.dtbo was recovered from our known-good 5.4
-      # tree (the public realme source references it but never shipped it), so
-      # `make dtbs` now works.  The device boots from a base DTB plus a DTBO
-      # overlay (androidboot.dtbo_idx), so both are required to boot.
+      # DTB/DTBO.  arch/arm64/boot/dts/sprd/Makefile nests every family block
+      # inside TWO further gates before the qogirl6 branch, so all three
+      # variables are required.  Passing only BSP_BUILD_FAMILY fell through to
+      # the "For UPSTREAM or AiAiAi" branch and built 4 unrelated DTBs.
+      # These are reference artifacts only: the board's dtb/dtbo partitions are
+      # empty and boot.img holds no FDT, so the live device tree is the stock
+      # Transsion X6525 one and we never flash ours (the 1h10 overlay is the
+      # realme reference board -- GC9305 SPI QVGA, not our nt36525b+td4160).
+      # A DTB problem must therefore never block the Image artifact.
       - name: Build DTB/DTBO
         run: |
           export PATH="${CLANG_DIR}/bin:${PATH}"
-          make LLVM=1 LLVM_IAS=1 ARCH=arm64 O=out BSP_BUILD_FAMILY=qogirl6 \
-            -j$(nproc) dtbs
-          echo "=== ums9230 device tree artifacts ==="
-          ls -la out/arch/arm64/boot/dts/sprd/ums9230-base.dtb
-          ls -la out/arch/arm64/boot/dts/sprd/ums9230-1h10-overlay.dtbo
+          make LLVM=1 LLVM_IAS=1 ARCH=arm64 O=out \
+            BSP_BUILD_DT_OVERLAY=y BSP_BUILD_ANDROID_OS=y BSP_BUILD_FAMILY=qogirl6 \
+            -j$(nproc) dtbs || echo "WARN: dtbs failed (reference artifact only, continuing)"
+          echo "=== ums9230 device tree artifacts (best effort) ==="
+          for f in out/arch/arm64/boot/dts/sprd/ums9230-base.dtb \
+                   out/arch/arm64/boot/dts/sprd/ums9230-1h10-overlay.dtbo; do
+            if [ -e "$f" ]; then ls -la "$f"; else echo "  MISSING $f"; fi
+          done
+
+      # `make Image` builds vmlinux and the Image, but NOT any =m module.  Every
+      # module the board actually loads at runtime is a module: sprd-cpufreq-v2
+      # and sprd_sip_svc (loaded from the vendor_boot ramdisk), plus sprd-drm,
+      # sprd-gsp, trusty/trusty-tui and sc27xx_fuel_gauge.  Without this step the
+      # kernel has no loadable drivers at all and the screen stays black, so
+      # this is the step that makes the artifact set flashable.
+      - name: Build in-tree modules
+        run: |
+          export PATH="${CLANG_DIR}/bin:${PATH}"
+          make LLVM=1 LLVM_IAS=1 ARCH=arm64 O=out -j$(nproc) modules
+          echo "=== in-tree modules built ==="
+          find out -name "*.ko" | wc -l
+          find out -name "*.ko" -printf "%f\n" | sort | head -40
 
       # GKI 2.0 vendor modules (audio/display/gpu/input/touchscreen/wcn/...),
-      # built out-of-tree against the just-built O=out tree.  These carry the
-      # sprd cpufreq-v2 + sip_svc modules the device loads from the vendor_boot
-      # ramdisk, and must be ABI-matched to THIS kernel build.
+      # built out-of-tree against the just-built O=out tree.  These must be
+      # ABI-matched to THIS kernel build, so they are always rebuilt here.
       - name: Build vendor modules (kernel_modules)
         run: |
           export PATH="${CLANG_DIR}/bin:${PATH}"
@@ -137,17 +158,21 @@ jobs:
 
       - name: Package artifacts
         run: |
-          mkdir -p pkg/boot-Image pkg/dtb pkg/modules
+          mkdir -p pkg/boot-Image pkg/dtb pkg/modules-intree pkg/modules-vendor
           cp out/arch/arm64/boot/Image pkg/boot-Image/ 2>/dev/null || true
           find out/arch/arm64/boot/dts -name "ums9230-base.dtb" \
             -exec cp {} pkg/dtb/ \; 2>/dev/null || true
           find out/arch/arm64/boot/dts -name "ums9230-1h10-overlay.dtbo" \
             -exec cp {} pkg/dtb/ \; 2>/dev/null || true
-          find kernel_modules -name "*.ko" -exec cp --parents {} pkg/modules/ \; 2>/dev/null || true
+          # In-tree =m modules: these are the ones the board loads at runtime.
+          find out -name "*.ko" -exec cp --parents {} pkg/modules-intree/ \; 2>/dev/null || true
+          # Out-of-tree kernel_modules/ set.
+          find kernel_modules -name "*.ko" -exec cp --parents {} pkg/modules-vendor/ \; 2>/dev/null || true
           # config snapshot for reference/debug
           cp out/.config pkg/ 2>/dev/null || cp .config pkg/ 2>/dev/null || true
           echo "=== pkg contents ==="
-          find pkg -type f | head -60
+          echo "in-tree modules: $(find pkg/modules-intree -name '*.ko' | wc -l)"
+          echo "vendor modules : $(find pkg/modules-vendor  -name '*.ko' | wc -l)"
           du -sh pkg
 
       - name: Upload Image
@@ -164,11 +189,18 @@ jobs:
           path: pkg/dtb/
           if-no-files-found: warn
 
+      - name: Upload in-tree modules
+        uses: actions/upload-artifact@v4
+        with:
+          name: modules-intree-${{ github.sha }}
+          path: pkg/modules-intree/
+          if-no-files-found: warn
+
       - name: Upload vendor modules
         uses: actions/upload-artifact@v4
         with:
-          name: modules-${{ github.sha }}
-          path: pkg/modules/
+          name: modules-vendor-${{ github.sha }}
+          path: pkg/modules-vendor/
           if-no-files-found: warn
 
       - name: Upload config
