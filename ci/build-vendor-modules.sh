@@ -490,8 +490,16 @@ for d in $(grep '^FAIL ' "${RESULTS}" | sed 's/^FAIL //'); do
 	n=$(sed -n 's/^KO_MODULE_NAME[[:space:]]*[:?+]\{0,1\}=[[:space:]]*\([A-Za-z0-9_-]\+\).*/\1/p' \
 		"${KSRC}/${d}/Kbuild" 2>/dev/null | head -1)
 	[ -n "${n}" ] || n=$(basename "${d}")
-	if [ -e "${MODOUT}/${n}.ko" ] || [ -d "${MODOUT}/${n}" ]; then
-		echo "  !! FAILED unit ${d} still has output named ${n}"
+	# Look for an actual MODULE, not the staging directory.  The directory can
+	# legitimately exist for a failed unit: report_missing_symvers() creates
+	# ${MODOUT}/<name>/Module.symvers as a documented empty placeholder for
+	# providers it could not supply, and sprd_camera is one of those because
+	# camera/cpp depends on it.  Testing -d flagged that placeholder as a stale
+	# artifact, which was a false positive -- and a check that cries wolf gets
+	# ignored, so it has to be right.
+	if [ -n "$(find "${MODOUT}" -name "${n}*.ko" -print -quit 2>/dev/null)" ] \
+	   || [ -n "$(find "${KSRC}/${d}" -name '*.ko' -print -quit 2>/dev/null)" ]; then
+		echo "  !! FAILED unit ${d} still has a .ko named ${n}*.ko"
 		stale=$((stale + 1))
 	fi
 done
