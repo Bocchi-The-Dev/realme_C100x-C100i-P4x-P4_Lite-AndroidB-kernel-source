@@ -47,7 +47,6 @@ build_one() {
 	if [ -f "${KSRC}/${d}/Makefile" ]; then
 		if timeout "${UNIT_TIMEOUT}" make -C "${KSRC}/${d}" \
 			BSP_KERNEL_PATH="${KBUILD}" BSP_MODULES_OUT="${MODOUT}" \
-			"${BSP_VARS[@]}" \
 			ARCH=arm64 LLVM=1 LLVM_IAS=1 -j1 modules >"${log}" 2>&1; then
 			built=1
 		fi
@@ -55,7 +54,6 @@ build_one() {
 	if [ "${built}" = 0 ]; then
 		if timeout "${UNIT_TIMEOUT}" make -C "${KBUILD}" \
 			M="${KSRC}/${d}" src="${KSRC}/${d}" \
-			"${BSP_VARS[@]}" \
 			ARCH=arm64 LLVM=1 LLVM_IAS=1 -j1 modules >>"${log}" 2>&1; then
 			built=1
 		fi
@@ -92,11 +90,21 @@ build_one() {
 # would select a DIFFERENT SoC's defines rather than simply selecting none.
 #   BSP_DTBO, BSP_MODULE_DISP_VERSION, BSP_BOARD_NAME, BSP_MODULE_GPU_VERSION,
 #   BSP_BOARD_CAMERA_MODULE_*, BSP_BOARD_PRODUCT_USING_VDSP.
-BSP_VARS=(
-	"BSP_KERNEL_VERSION=kernel5.15"
-	"BSP_KERNEL_BUILD_CONFIG=build.config.gki.aarch64.ums9230_"
-)
-export BSP_VARS
+#
+# These MUST be real environment variables, not a bash array.  An earlier version
+# of this script collected them into BSP_VARS=(...) and passed "${BSP_VARS[@]}"
+# on the make command line.  bash does not export arrays through the
+# environment, so inside the xargs subshells the array was empty, the expansion
+# produced no arguments at all, and the variables silently never reached make.
+# Verified with a standalone test: an exported array reads back as "count=0" in
+# a child `bash -c`, while an exported scalar arrives intact.  Because the
+# subshell is not running under `set -u`, the empty expansion was not even an
+# error -- the build just ran with no BSP variables, which is why wlan_combo,
+# wcn_bsp, bluetooth and fm all kept failing with their original errors.
+# Exporting scalars means make also passes them down its own sub-makes, so the
+# values reach the Kbuild at every depth without relying on MAKEFLAGS.
+export BSP_KERNEL_VERSION=kernel5.15
+export BSP_KERNEL_BUILD_CONFIG=build.config.gki.aarch64.ums9230_
 
 export -f build_one
 # RESULTS must be exported too: xargs runs build_one in a separate `bash -c`,
@@ -113,10 +121,11 @@ cd "${KSRC}" || exit 1
 # produced into modules-intree, so building both would ship two modules with
 # the same name.
 mapfile -t UNITS < <(find kernel_modules -name Kbuild -printf '%h\n' \
-	| sort -u | grep -v '/display/dispc$')
+	| sort -u | grep -v '/display/dispc$' | grep -v '/mali/csf/ipa_control$')
 
 echo "discovered ${#UNITS[@]} external module units (parallel=${JOBS}, timeout=${UNIT_TIMEOUT}s each)"
 echo "skipping kernel_modules/kernel5.15/display/dispc -- duplicate of in-tree sprd-drm"
+echo "skipping */mali/csf/ipa_control -- a Kbuild fragment included by its parent csf/Kbuild, not a unit"
 
 printf '%s\n' "${UNITS[@]}" \
 	| xargs -P "${JOBS}" -I{} bash -c 'build_one "$1"' _ {}
@@ -140,4 +149,30 @@ if [ "${fail_count}" -gt 0 ]; then
 			"${MODOUT}/${tag}.log" 2>/dev/null | sed 's/^/      /'
 	done
 fi
-echo "=== .ko produced: $(find "${MODOUT}" -name '*.ko' | wc -l) ==="
+produced=$(find "${MODOUT}" -name '*.ko' | wc -l)
+echo "=== .ko produced: ${produced} ==="
+
+# Board-critical assertion.
+#
+# A wall of "FAILED" lines is not a verdict: most of the 50 failures are other
+# panels (focaltech, himax), other GPU generations (midgard, natt), other PMICs
+# (sc2721) and other SoCs' camera flash ICs, none of which this board has.  The
+# check that matters is whether the modules the X6525 actually loads got built.
+# The list below was derived by intersecting the failing units against the
+# device's own /proc/modules and /vendor/lib/modules over adb, so it is measured
+# rather than guessed.
+CRITICAL_MODULES="sprd_wlan_combo unisoc_wcn_bsp mali_gondul snd-soc-sprd-codec-sc2730 sprdbt_tty sprd_fm"
+missing_critical=""
+for m in ${CRITICAL_MODULES}; do
+	if [ -z "$(find "${MODOUT}" -name "${m}.ko" -print -quit)" ]; then
+		missing_critical="${missing_critical} ${m}.ko"
+	fi
+done
+if [ -n "${missing_critical}" ]; then
+	echo "=== ASSERTION FAILED: board-critical modules not built:"
+	echo "   ${missing_critical}"
+	echo "   These are loaded by the X6525.  The kernel will not boot without"
+	echo "   them, so this is a hard failure, not a warning."
+	exit 1
+fi
+echo "=== board-critical modules present: ${CRITICAL_MODULES} ==="
