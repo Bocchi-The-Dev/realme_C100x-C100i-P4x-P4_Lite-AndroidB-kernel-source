@@ -68,7 +68,11 @@ build_one() {
 	fi
 }
 export -f build_one
-export KSRC KBUILD MODOUT UNIT_TIMEOUT
+# RESULTS must be exported too: xargs runs build_one in a separate `bash -c`,
+# and an unexported variable is empty there, so the per-unit result lines were
+# being appended to "" ("No such file or directory" on stderr) and the counts
+# at the end came out 0/0.
+export KSRC KBUILD MODOUT UNIT_TIMEOUT RESULTS
 
 cd "${KSRC}" || exit 1
 
@@ -86,11 +90,11 @@ echo "skipping kernel_modules/kernel5.15/display/dispc -- duplicate of in-tree s
 printf '%s\n' "${UNITS[@]}" \
 	| xargs -P "${JOBS}" -I{} bash -c 'build_one "$1"' _ {}
 
-local_ok=$(grep -c '^OK ' "${RESULTS}" 2>/dev/null || echo 0)
-local_fail=$(grep -c '^FAIL ' "${RESULTS}" 2>/dev/null || echo 0)
-echo "=== vendor module units built OK : ${local_ok} / $((local_ok + local_fail)) ==="
-echo "=== vendor module units FAILED   : ${local_fail} ==="
-if [ "${local_fail}" -gt 0 ]; then
+ok_count=$(grep -c '^OK ' "${RESULTS}" 2>/dev/null || echo 0)
+fail_count=$(grep -c '^FAIL ' "${RESULTS}" 2>/dev/null || echo 0)
+echo "=== vendor module units built OK : ${ok_count} / $((ok_count + fail_count)) ==="
+echo "=== vendor module units FAILED   : ${fail_count} ==="
+if [ "${fail_count}" -gt 0 ]; then
 	echo "--- failed units ---"
 	grep '^FAIL ' "${RESULTS}" | sed 's/^FAIL /   /'
 	echo "--- first error line of each failed unit's log ---"
