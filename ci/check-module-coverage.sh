@@ -54,7 +54,7 @@ BOOT_BLOCKING="sprd-drm trusty-tui sprd_wlan_combo wcn_bsp"
 # DEVICE_CRITICAL is reported prominently but does not fail the build.  These
 # are the subsystems a daily driver needs; each was measured as present in the
 # device's /proc/modules AND failing or misnamed in our build.
-DEVICE_CRITICAL="mali_gondul sprd_camera sprd_cpp sprd_sensor sprdbt_tty sprd_fm snd-soc-sprd-codec-sc2730 mcdt_hw_r2p0 sprd_gpu_cooling sprd-ion"
+DEVICE_CRITICAL="mali_kbase sprd_camera sprd_cpp sprd_sensor sprdbt_tty sprd_fm snd-soc-sprd-codec-sc2730 mcdt_hw_r2p0 sprd_gpu_cooling sprd-ion"
 
 # Stock-name -> our-name renames, so a rename is not reported as a gap.  Kept in
 # a data file (ci/module-aliases.stock515) with the reasoning for each, because

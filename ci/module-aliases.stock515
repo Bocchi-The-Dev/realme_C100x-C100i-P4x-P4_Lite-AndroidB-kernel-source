@@ -10,33 +10,17 @@
 # A value of "-" means "no 5.15 module; handled another way", with the reason.
 #
 # ---------------------------------------------------------------------------
-# mali_kbase -> mali_gondul
-#   5.4 shipped the GPU as drivers/misc/mali_kbase.  5.15 moved it out of tree
-#   to kernel_modules/kernel5.15/gpu/gondul/mali, whose Kbuild sets
-#   "obj-$(CONFIG_MALI_MIDGARD) += mali_gondul.o" and whose Kbuild self-defaults
-#   CONFIG_MALI_MIDGARD to m.  Same driver, new name.
+# mali_kbase -> mali_kbase
+#   NOT a rename after all, and this entry exists to record why.  An earlier
+#   alias mapped mali_kbase to mali_gondul on the belief that 5.15 renamed the
+#   GPU driver.  It did not.  The board's GPU is the *natt* driver, not gondul:
+#   the live device tree says soc/mm/gpu@23100000 compatible = "sprd,mali-natt",
+#   and gpu/sprd/natt/platform/qogirl6 matches both the SoC (qogirl6) and the
+#   driver.  Built with CONFIG_MALI_PLATFORM_NAME=qogirl6, natt produces
+#   mali_kbase.ko -- byte-for-byte the name the stock loader asks for.  The
+#   alias was therefore chasing a driver we do not ship.
 #
-# gnss_common_ctl_all -> unisoc_gnss_common_ctl_all
-#   5.15's KO_MODULE_NAME for wcn/gnss/unisoc_gnss/gnss_common_ctl is
-#   unisoc_gnss_common_ctl_all; the stock 5.4 name had no unisoc_ prefix.
-#
-# omnivision_td4160 -> omnivision_tcm + in-tree DSI panel driver
-#   The 5.4 tree had a standalone omnivision_td4160.ko for this panel.  5.15
-#   splits it: the panel itself is handled by the in-tree
-#   drivers/unisoc_platform/sprd_disp DSI panel code (sprd_dsi_panel.c lists
-#   td4160), and the touch controller is the out-of-tree
-#   touchscreen/odm/omnivision_tcm unit, which builds as omnivision_tcm-modules.
-#   NOT yet confirmed that the live touch node binds to omnivision_tcm on this
-#   board -- flagged rather than claimed.
-#
-# wcn_bsp -> wcn_bsp
-#   Not a rename, recorded to prevent a false alarm: the stock list's wcn_bsp.ko
-#   is built IN TREE from drivers/unisoc_platform/sprdwcn (CONFIG_UNISOC_WCN_BSP),
-#   so it appears in modules-intree.  kernel_modules also carries a copy of this
-#   driver, but it builds as "unisoc_wcn_bsp", which nothing references.  The
-#   in-tree one is authoritative because sprd_wlan_combo depends on "wcn_bsp".
 # ---------------------------------------------------------------------------
-mali_kbase:mali_gondul
 gnss_common_ctl_all:unisoc_gnss_common_ctl_all
 omnivision_td4160:omnivision_tcm-modules
 wcn_bsp:wcn_bsp

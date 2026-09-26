@@ -44,16 +44,49 @@ build_one() {
 	tag=$(echo "${d}" | tr '/' '_')
 	log="${MODOUT}/${tag}.log"
 
+	# Per-unit extra make variables.  The GPU needs one, and the reason is
+	# specific: the vendor Makefile defaults CONFIG_MALI_PLATFORM_NAME to
+	# "devicetree", but no UNISOC platform directory is called that.
+	# gpu/sprd/natt/platform/ contains qogirl6, qogirn6l and qogirn6pro, and
+	# gpu/sprd/gondul/platform/ contains only sharkl5Pro.  The live device tree
+	# says soc/mm/gpu@23100000 compatible = "sprd,mali-natt" on a qogirl6 SoC,
+	# so qogirl6 is the measured value, not a guess.
+	local extra=()
+	case "${d}" in
+		gpu/natt/mali|gpu/*/mali) extra=("CONFIG_MALI_PLATFORM_NAME=qogirl6") ;;
+	esac
+
+	# Three mechanisms, because the vendor wrappers in this tree disagree about
+	# both the target name and the variables they read:
+	#   1. wrappers with a "modules:" target reading BSP_KERNEL_PATH
+	#   2. wrappers with an "all:" target reading KDIR/M   <- the GPU units
+	#   3. bare kbuild, as a last resort
+	# Mechanism 2 matters: gpu/*/mali/Makefile computes the CONFIG_MALI_*
+	# defaults itself, and its own comment says "Dependency resolution is done
+	# through statements as Kconfig is not supported for out-of-tree builds".
+	# Reaching for bare kbuild instead skipped that, leaving
+	# CONFIG_MALI_REAL_HW undefined, so the Kbuild's
+	#   ifneq ($(CONFIG_MALI_REAL_HW),y)
+	#       mali_gondul-y += backend/gpu/mali_kbase_model_linux.o
+	# evaluated true and BOTH mali_kbase_irq_linux.o and mali_kbase_model_linux.o
+	# were linked -- four duplicate symbols at the LTO link.
 	if [ -f "${KSRC}/${d}/Makefile" ]; then
 		if timeout "${UNIT_TIMEOUT}" make -C "${KSRC}/${d}" \
 			BSP_KERNEL_PATH="${KBUILD}" BSP_MODULES_OUT="${MODOUT}" \
 			ARCH=arm64 LLVM=1 LLVM_IAS=1 -j1 modules >"${log}" 2>&1; then
 			built=1
 		fi
+		if [ "${built}" = 0 ] && grep -qE '^all:' "${KSRC}/${d}/Makefile"; then
+			if timeout "${UNIT_TIMEOUT}" make -C "${KSRC}/${d}" \
+				KDIR="${KBUILD}" M="${KSRC}/${d}" "${extra[@]}" \
+				ARCH=arm64 LLVM=1 LLVM_IAS=1 -j1 all >>"${log}" 2>&1; then
+				built=1
+			fi
+		fi
 	fi
 	if [ "${built}" = 0 ]; then
 		if timeout "${UNIT_TIMEOUT}" make -C "${KBUILD}" \
-			M="${KSRC}/${d}" src="${KSRC}/${d}" \
+			M="${KSRC}/${d}" src="${KSRC}/${d}" "${extra[@]}" \
 			ARCH=arm64 LLVM=1 LLVM_IAS=1 -j1 modules >>"${log}" 2>&1; then
 			built=1
 		fi
@@ -121,11 +154,15 @@ cd "${KSRC}" || exit 1
 # produced into modules-intree, so building both would ship two modules with
 # the same name.
 mapfile -t UNITS < <(find kernel_modules -name Kbuild -printf '%h\n' \
-	| sort -u | grep -v '/display/dispc$' | grep -v '/mali/csf/ipa_control$')
+	| sort -u | grep -v '/display/dispc$' | grep -v '/mali/csf/ipa_control$' \
+	| grep -v '/gpu/midgard/mali$' | grep -v '/gpu/gondul/mali$' \
+	| grep -v '/gpu/natt/mali/csf$')
 
 echo "discovered ${#UNITS[@]} external module units (parallel=${JOBS}, timeout=${UNIT_TIMEOUT}s each)"
 echo "skipping kernel_modules/kernel5.15/display/dispc -- duplicate of in-tree sprd-drm"
 echo "skipping */mali/csf/ipa_control -- a Kbuild fragment included by its parent csf/Kbuild, not a unit"
+echo "skipping gpu/{midgard,gondul}/mali -- platform dirs are pike2/sharkle and sharkl5Pro;"
+echo "  this board is qogirl6 and its GPU is natt (DT: sprd,mali-natt)"
 
 printf '%s\n' "${UNITS[@]}" \
 	| xargs -P "${JOBS}" -I{} bash -c 'build_one "$1"' _ {}
@@ -161,7 +198,7 @@ echo "=== .ko produced: ${produced} ==="
 # The list below was derived by intersecting the failing units against the
 # device's own /proc/modules and /vendor/lib/modules over adb, so it is measured
 # rather than guessed.
-CRITICAL_MODULES="sprd_wlan_combo unisoc_wcn_bsp mali_gondul snd-soc-sprd-codec-sc2730 sprdbt_tty sprd_fm"
+CRITICAL_MODULES="sprd_wlan_combo mali_kbase snd-soc-sprd-codec-sc2730 sprdbt_tty sprd_fm"
 missing_critical=""
 for m in ${CRITICAL_MODULES}; do
 	if [ -z "$(find "${MODOUT}" -name "${m}.ko" -print -quit)" ]; then
