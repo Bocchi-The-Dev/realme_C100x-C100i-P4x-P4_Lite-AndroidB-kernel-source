@@ -788,8 +788,19 @@ static int cm_get_bat_aging_id(struct charger_manager *cm, int *aging_bat_id)
 		return ret;
 	}
 
+	/*
+	 * sprd_battery_get_aging_bat_id() only exists in the non-Oplus build of
+	 * sprd_battery_info.h -- it sits behind #ifndef OPLUS_FEATURE_CHG_BASIC,
+	 * and OPLUS_FEATURE_CHG_BASIC is defined for the whole kernel by
+	 * Makefile:1203.  The Oplus battery driver has no equivalent, so on an
+	 * Oplus build the aging id stays at the 0 assigned above, which is the
+	 * "no aging data" case and is what the 5.4 tree's equivalent code path
+	 * effectively uses (that tree has no Oplus fork of this header at all).
+	 */
+#ifndef OPLUS_FEATURE_CHG_BASIC
 	*aging_bat_id = sprd_battery_get_aging_bat_id(cm->charger_psy, charge_cycle);
 	dev_info(cm->dev, "%s %d, aging_bat_id = %d\n", __func__, __LINE__, *aging_bat_id);
+#endif
 
 	return ret;
 }
@@ -6706,7 +6717,7 @@ void cm_check_pd_update_ac_usb_online(bool is_pd_hub)
 	}
 }
 
-void cm_check_rp_limit_current(int rp_limit)
+int cm_check_rp_limit_current(int rp_limit)
 {
 	struct charger_manager *cm;
 	bool found_power_supply = false;
@@ -6729,12 +6740,12 @@ void cm_check_rp_limit_current(int rp_limit)
 
 		if (!found_power_supply) {
 			pr_err("%s:line%d no cm found!!!\n", __func__, __LINE__);
-			return;
+			return 0;
 		}
 
 		if (!cm) {
 			pr_err("%s:line%d NULL pointer!!!\n", __func__, __LINE__);
-			return;
+			return 0;
 		}
 	}
 
@@ -6743,6 +6754,17 @@ void cm_check_rp_limit_current(int rp_limit)
 		cm->desc->limit_status |= CM_CHARGE_RP_LIMIT_CMD;
 		schedule_delayed_work(&cm->limit_current_work, 0);
 	}
+
+	/*
+	 * sprd_charger_ops.set_rp_limit_current is declared
+	 * int (*)(int) in include/linux/usb/sprd_tcpm.h, while this function was
+	 * defined void, so initialising cm_sprd_charger_ops with it was a hard
+	 * -Wincompatible-function-pointer-types error.  Nothing consumed a return
+	 * value before, so 0 everywhere; the error paths above have always
+	 * swallowed their failure and still return early, and this keeps that
+	 * behaviour rather than changing it.
+	 */
+	return 0;
 }
 
 static struct sprd_charger_ops cm_sprd_charger_ops = {
@@ -7992,7 +8014,17 @@ static int cm_get_bat_info(struct charger_manager *cm, int bat_aging_id)
 	struct sprd_battery_info info = {};
 	int ret;
 
+	/*
+	 * Three arguments on a general build, two under OPLUS_FEATURE_CHG_BASIC:
+	 * sprd_battery_info.h declares the Oplus form without the dynamic aging
+	 * id, which is the same reason cm_get_bat_aging_id() cannot ask for one
+	 * above.  Matches the 5.4 tree, which is a two-argument call.
+	 */
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	ret = sprd_battery_get_battery_info(cm->charger_psy, &info);
+#else
 	ret = sprd_battery_get_battery_info(cm->charger_psy, &info, bat_aging_id);
+#endif
 	if (ret) {
 		dev_err(cm->dev, "failed to get battery information\n");
 		sprd_battery_put_battery_info(cm->charger_psy, &info);
