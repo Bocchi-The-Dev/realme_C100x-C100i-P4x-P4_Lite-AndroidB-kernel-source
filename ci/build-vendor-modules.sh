@@ -40,9 +40,27 @@ RESULTS="${MODOUT}/_results"
 
 build_one() {
 	local d="$1"
-	local tag log built=0
+	local tag log built=0 name
 	tag=$(echo "${d}" | tr '/' '_')
 	log="${MODOUT}/${tag}.log"
+	name=$(basename "${d}")
+
+	# Purge this unit's previous output BEFORE building.
+	#
+	# Without this, a .ko from an earlier successful attempt survives a later
+	# failure and gets packaged anyway.  That is not hypothetical: a stale
+	# sprd_camera.ko (35 MB, correct vermagic) left over from a manual
+	# experiment made ci/check-module-coverage.sh report sprd_camera.ko as
+	# COVERED while the unit was in fact failing, inflating the figure from 87 to
+	# 88 covered and hiding a genuine device-critical gap.  A stale artifact that
+	# reports success is the same failure mode as a swallowed error, just quieter.
+	#
+	# Three locations, because the three build mechanisms each write somewhere
+	# different: the BSP_MODULES_OUT wrappers stage into ${MODOUT}/<name>, the
+	# "all:" wrappers pass M=$(SRC) and so write beside the source, and the bare
+	# kbuild fallback writes under the source tree too.
+	rm -rf "${MODOUT:?}/${name}" 2>/dev/null
+	find "${KSRC}/${d}" -maxdepth 1 -name '*.ko' -delete 2>/dev/null
 
 	# Per-unit extra make variables.  The GPU needs one, and the reason is
 	# specific: the vendor Makefile defaults CONFIG_MALI_PLATFORM_NAME to
@@ -194,6 +212,43 @@ export BSP_BOARD_CAMERA_MODULE_ISP_ADAPT_VERSION=qogirl6
 # (Incidentally they also read SCT606T_X6525, which independently confirms the
 # board is the X6525 -- see the swapped vendor/build.prop that made adb report
 # model X6528.)
+# BSP_BOARD_CAMERA_MODULE_ISP_VERSION is deliberately STILL UNSET.
+#
+# Candidates in the 5.15 tree:
+#   dcam_if_r4p0_isp_r6p11   DCAM-IF r4p0 + ISP r6p11
+#   dcam_r6p0_isp_r6p91      DCAM r6p0    + ISP r6p91
+#
+# Unlike its three siblings this one could not be pinned down, and the attempts
+# are recorded so they are not repeated:
+#
+#  - Vendor build paths.  This is how the other three were settled, and it fails
+#    here for a structural reason: the 5.4 module was built from
+#      camera/core/isp2.6/adpt/qogirl6/
+#    and the 5.15 tree reorganised that into the dcam_*_isp_* directories, so
+#    the path does not name either candidate.  (It DID confirm adpt/qogirl6,
+#    which is why ISP_ADAPT_VERSION=qogirl6 is solid.)
+#  - Symbol fingerprint.  The four r3pX CSI variants proved incomparable because
+#    they define identical names; the same problem does not apply here, but the
+#    comparison is swamped by the 5.4-vs-5.15 generation gap.
+#  - String literals.  Of the strings unique to each candidate, 3 appear in the
+#    device's sprd_camera.ko for dcam_if and 0 for dcam_r6p0 -- far too few to
+#    mean anything across a driver generation.
+#  - Filename overlap with the 5.4 build: 6/21 for dcam_if, 4/21 for dcam_r6p0.
+#  - Device tree.  It carries sprd,hwdvfs-dcam-if and sprd,hwdvfs-isp nodes, so
+#    a DCAM-IF block exists, but no ISP revision property anywhere.
+#  - dmesg and logcat name neither.
+#
+# The best available signal is the presence of sprd,hwdvfs-dcam-if, which only
+# the dcam_if_* candidate is named for.  That is suggestive, not conclusive, and
+# a wrong pick selects register-level ISP code, so it is left unset rather than
+# guessed.  Note that choosing is not the blocker either way: BOTH candidates
+# fail to build until ported, with different errors --
+#   dcam_if_r4p0_isp_r6p11: implicit declaration of __flush_dcache_area
+#                           (no longer exported to modules in 5.15)
+#   dcam_r6p0_isp_r6p91:    cast to smaller integer type 'unsigned int' from
+#                           'void *' (a 32/64-bit pointer bug)
+# sprd_camera.ko is in the device's modules.load, so this is a real gap, but it
+# is not boot-blocking: the phone reaches the launcher without a camera driver.
 export BSP_BOARD_CAMERA_MODULE_CSI_VERSION=receiver_r3p1
 export BSP_BOARD_CAMERA_MODULE_CPP_VERSION=lite_r6p0
 
