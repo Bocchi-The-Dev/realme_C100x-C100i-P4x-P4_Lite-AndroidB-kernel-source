@@ -138,23 +138,65 @@ jobs:
           find out -name "*.ko" | wc -l
           find out -name "*.ko" -printf "%f\n" | sort | head -40
 
-      # GKI 2.0 vendor modules (audio/display/gpu/input/touchscreen/wcn/...),
-      # built out-of-tree against the just-built O=out tree.  These must be
-      # ABI-matched to THIS kernel build, so they are always rebuilt here.
+      # GKI 2.0 vendor modules (audio/display/gpu/input/touchscreen/wcn/...).
+      #
+      # Root cause of the previous "vendor modules: 0": kernel_modules/<subsystem>/
+      # is only a CONTAINER.  None of audio, display, gpu, input, touchscreen,
+      # wcn, video, vender, npu or nfc has a Makefile, so `make -C
+      # kernel_modules/kernel5.15/audio` dies with "No targets specified and no
+      # makefile found".  The real build units are the 188 leaf directories that
+      # contain a Kbuild; 109 of those also carry the vendor's external-make
+      # wrapper Makefile, and 79 are Kbuild-only.
+      #
+      # Each unit is built as a kbuild external module, which is what the vendor
+      # wrapper does internally (it symlinks the Kbuild into BSP_MODULES_OUT and
+      # calls `make -C BSP_KERNEL_PATH M=... src=... modules`).  We try the
+      # vendor wrapper first where it exists and fall back to calling kbuild
+      # directly, because the two disagree about how src= is threaded through
+      # and we would rather ship modules than argue about it.  Failures are
+      # counted and listed, not swallowed: a silent "|| echo WARN" hid a total
+      # failure for two runs.
       - name: Build vendor modules (kernel_modules)
         run: |
           export PATH="${CLANG_DIR}/bin:${PATH}"
-          make LLVM=1 LLVM_IAS=1 ARCH=arm64 O=out -j$(nproc) modules_prepare
-          cd kernel_modules/kernel5.15
-          for d in audio display gpu input touchscreen wcn video vender \
-                   dmabufheap npu nfc microarray; do
-            [ -d "$d" ] || continue
-            echo "=== building $d ==="
-            make -C "$d" KDIR="$GITHUB_WORKSPACE/out" \
-              LLVM=1 LLVM_IAS=1 ARCH=arm64 || echo "WARN: $d failed (continuing)"
+          KSRC="${GITHUB_WORKSPACE}"
+          KBUILD="${KSRC}/out"
+          MODOUT="${KBUILD}/vendor_modules"
+          rm -rf "${MODOUT}"; mkdir -p "${MODOUT}"
+          mapfile -t UNITS < <(cd "${KSRC}" && find kernel_modules -name Kbuild -printf '%h\n' | sort -u)
+          echo "discovered ${#UNITS[@]} external module units"
+          ok=0; fail=0; failed=""
+          for d in "${UNITS[@]}"; do
+            case "$d" in
+              # Duplicate of the in-tree drivers/unisoc_platform/sprd_disp: both
+              # build sprd-drm.ko from the same sources and the in-tree copy is
+              # already in modules-intree, so building both would ship two
+              # modules with the same name.
+              */display/dispc) echo "  skip (in-tree sprd-drm already built): $d"; continue;;
+            esac
+            tag=$(echo "$d" | tr '/' '_')
+            log="${MODOUT}/${tag}.log"
+            built=0
+            if [ -f "${KSRC}/${d}/Makefile" ]; then
+              if make -C "${KSRC}/${d}" \
+                   BSP_KERNEL_PATH="${KBUILD}" BSP_MODULES_OUT="${MODOUT}" \
+                   ARCH=arm64 LLVM=1 LLVM_IAS=1 -j"$(nproc)" modules >"$log" 2>&1; then
+                built=1
+              fi
+            fi
+            if [ "$built" = 0 ]; then
+              if make -C "${KBUILD}" M="${KSRC}/${d}" src="${KSRC}/${d}" \
+                   ARCH=arm64 LLVM=1 LLVM_IAS=1 -j"$(nproc)" modules >>"$log" 2>&1; then
+                built=1
+              fi
+            fi
+            if [ "$built" = 1 ]; then ok=$((ok+1)); else fail=$((fail+1)); failed="${failed} ${d}"; fi
           done
-          find . -name "*.ko" | head -50
-          find . -name "*.ko" | wc -l
+          echo "=== vendor module units built OK : ${ok} / $((ok+fail)) ==="
+          echo "=== vendor module units FAILED   : ${fail} ==="
+          for d in ${failed}; do echo "   FAILED: ${d}"; done
+          echo "=== .ko produced ==="
+          find "${MODOUT}" -name "*.ko" | wc -l
 
       - name: Package artifacts
         run: |
@@ -166,7 +208,10 @@ jobs:
             -exec cp {} pkg/dtb/ \; 2>/dev/null || true
           # In-tree =m modules: these are the ones the board loads at runtime.
           find out -name "*.ko" -exec cp --parents {} pkg/modules-intree/ \; 2>/dev/null || true
-          # Out-of-tree kernel_modules/ set.
+          # Out-of-tree kernel_modules/ set, as built by the step above (the
+          # vendor wrapper stages them under out/vendor_modules/<name>/, and the
+          # direct kbuild fallback drops them beside their source dir).
+          find out/vendor_modules -name "*.ko" -exec cp --parents {} pkg/modules-vendor/ \; 2>/dev/null || true
           find kernel_modules -name "*.ko" -exec cp --parents {} pkg/modules-vendor/ \; 2>/dev/null || true
           # config snapshot for reference/debug
           cp out/.config pkg/ 2>/dev/null || cp .config pkg/ 2>/dev/null || true
