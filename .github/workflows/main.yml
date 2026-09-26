@@ -28,19 +28,27 @@ jobs:
             python3 rsync kmod dwarves zip unzip
 
       # The tree pins clang-r450784e (build.config.constants).  This mirror is
-      # the same prebuilt the vendored build_5.15.sh uses.
+      # the same prebuilt the vendored build_5.15.sh uses.  NOTE: the tarball is
+      # flat at the root (bin/clang, NOTICE, ...) with NO leading directory, so
+      # do NOT use --strip-components (doing so mangles bin/ away and the job
+      # silently falls back to the system clang).
       - name: Fetch clang-r450784e
         run: |
           curl -sSL -o /tmp/clang.tar.gz \
             "https://github.com/ravindu644/Android-Kernel-Tutorials/releases/download/toolchains/clang-r450784e.tar.gz"
           mkdir -p "${CLANG_DIR}"
-          tar xzf /tmp/clang.tar.gz -C "${CLANG_DIR}" --strip-components=1
+          tar xzf /tmp/clang.tar.gz -C "${CLANG_DIR}"
           echo "${CLANG_DIR}/bin" >> "$GITHUB_PATH"
+          test -x "${CLANG_DIR}/bin/clang" || { echo "clang missing after extract"; exit 1; }
+          test -x "${CLANG_DIR}/bin/ld.lld" || { echo "ld.lld missing after extract"; exit 1; }
 
       - name: Show toolchain
         run: |
+          export PATH="${CLANG_DIR}/bin:${PATH}"
           clang --version
           ld.lld --version
+          # Guard against silently building with the runner's system clang.
+          which clang | grep -q "${CLANG_DIR}" || { echo "WRONG clang on PATH"; exit 1; }
 
       # gki_defconfig is the GKI 2.0 base; sprd_gki_qogirn6pro.fragment is the
       # Unisoc qogirn6pro/ums9230 (our SoC, T606) vendor fragment.  It sets
