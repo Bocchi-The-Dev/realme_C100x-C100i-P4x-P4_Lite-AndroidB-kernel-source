@@ -156,47 +156,22 @@ jobs:
       # and we would rather ship modules than argue about it.  Failures are
       # counted and listed, not swallowed: a silent "|| echo WARN" hid a total
       # failure for two runs.
+      # GKI 2.0 vendor modules (audio/display/gpu/input/touchscreen/wcn/...).
+      # See ci/build-vendor-modules.sh for why this is a script: the subsystem
+      # directories are containers, not build units, so the 213 real units are
+      # the leaf directories holding a Kbuild.  It runs them in parallel and
+      # prints one line per unit, because a 6-minute step with no output reads
+      # as a hang, and it times out each unit so one wedged build cannot stall
+      # the job.  Failures are counted and named, never swallowed.
       - name: Build vendor modules (kernel_modules)
         run: |
           export PATH="${CLANG_DIR}/bin:${PATH}"
-          KSRC="${GITHUB_WORKSPACE}"
-          KBUILD="${KSRC}/out"
-          MODOUT="${KBUILD}/vendor_modules"
-          rm -rf "${MODOUT}"; mkdir -p "${MODOUT}"
-          mapfile -t UNITS < <(cd "${KSRC}" && find kernel_modules -name Kbuild -printf '%h\n' | sort -u)
-          echo "discovered ${#UNITS[@]} external module units"
-          ok=0; fail=0; failed=""
-          for d in "${UNITS[@]}"; do
-            case "$d" in
-              # Duplicate of the in-tree drivers/unisoc_platform/sprd_disp: both
-              # build sprd-drm.ko from the same sources and the in-tree copy is
-              # already in modules-intree, so building both would ship two
-              # modules with the same name.
-              */display/dispc) echo "  skip (in-tree sprd-drm already built): $d"; continue;;
-            esac
-            tag=$(echo "$d" | tr '/' '_')
-            log="${MODOUT}/${tag}.log"
-            built=0
-            if [ -f "${KSRC}/${d}/Makefile" ]; then
-              if make -C "${KSRC}/${d}" \
-                   BSP_KERNEL_PATH="${KBUILD}" BSP_MODULES_OUT="${MODOUT}" \
-                   ARCH=arm64 LLVM=1 LLVM_IAS=1 -j"$(nproc)" modules >"$log" 2>&1; then
-                built=1
-              fi
-            fi
-            if [ "$built" = 0 ]; then
-              if make -C "${KBUILD}" M="${KSRC}/${d}" src="${KSRC}/${d}" \
-                   ARCH=arm64 LLVM=1 LLVM_IAS=1 -j"$(nproc)" modules >>"$log" 2>&1; then
-                built=1
-              fi
-            fi
-            if [ "$built" = 1 ]; then ok=$((ok+1)); else fail=$((fail+1)); failed="${failed} ${d}"; fi
-          done
-          echo "=== vendor module units built OK : ${ok} / $((ok+fail)) ==="
-          echo "=== vendor module units FAILED   : ${fail} ==="
-          for d in ${failed}; do echo "   FAILED: ${d}"; done
-          echo "=== .ko produced ==="
-          find "${MODOUT}" -name "*.ko" | wc -l
+          KSRC="${GITHUB_WORKSPACE}" \
+          KBUILD="${GITHUB_WORKSPACE}/out" \
+          MODOUT="${GITHUB_WORKSPACE}/out/vendor_modules" \
+          JOBS="$(nproc)" \
+          UNIT_TIMEOUT=300 \
+            ./ci/build-vendor-modules.sh
 
       - name: Package artifacts
         run: |
@@ -207,12 +182,22 @@ jobs:
           find out/arch/arm64/boot/dts -name "ums9230-1h10-overlay.dtbo" \
             -exec cp {} pkg/dtb/ \; 2>/dev/null || true
           # In-tree =m modules: these are the ones the board loads at runtime.
-          find out -name "*.ko" -exec cp --parents {} pkg/modules-intree/ \; 2>/dev/null || true
+          # Exclude out/vendor_modules -- the previous step stages its output
+          # under out/, so a bare `find out -name '*.ko'` swept the vendor
+          # modules in here too and double-counted them (252 reported against
+          # 174 actual in-tree modules).
+          find out -name "*.ko" -not -path "out/vendor_modules/*" \
+            -exec cp --parents {} pkg/modules-intree/ \; 2>/dev/null || true
           # Out-of-tree kernel_modules/ set, as built by the step above (the
           # vendor wrapper stages them under out/vendor_modules/<name>/, and the
           # direct kbuild fallback drops them beside their source dir).
           find out/vendor_modules -name "*.ko" -exec cp --parents {} pkg/modules-vendor/ \; 2>/dev/null || true
           find kernel_modules -name "*.ko" -exec cp --parents {} pkg/modules-vendor/ \; 2>/dev/null || true
+          # Per-unit build logs.  Without these a failed vendor unit is
+          # unattributable: we learn only that a unit failed, never why.
+          mkdir -p pkg/vendor-logs
+          find out/vendor_modules -maxdepth 1 -name "*.log" \
+            -exec cp {} pkg/vendor-logs/ \; 2>/dev/null || true
           # config snapshot for reference/debug
           cp out/.config pkg/ 2>/dev/null || cp .config pkg/ 2>/dev/null || true
           echo "=== pkg contents ==="
@@ -246,6 +231,15 @@ jobs:
         with:
           name: modules-vendor-${{ github.sha }}
           path: pkg/modules-vendor/
+          if-no-files-found: warn
+
+      # Per-unit build logs for the vendor modules.  Without these, a failed unit
+      # is unattributable -- we learn only that it failed, never why.
+      - name: Upload vendor module build logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: vendor-logs-${{ github.sha }}
+          path: pkg/vendor-logs/
           if-no-files-found: warn
 
       - name: Upload config
