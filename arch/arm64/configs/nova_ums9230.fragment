@@ -77,3 +77,39 @@ CONFIG_PSTORE_PMSG=y
 CONFIG_PSTORE_COMPRESS=y
 CONFIG_PSTORE_DEFLATE_COMPRESS=y
 CONFIG_PSTORE_DEFLATE_COMPRESS_DEFAULT=y
+
+# --- Panic / hang capture: match the running 5.4 device --------------------
+# The device's own /proc/config.gz has SPRD_SYSDUMP, SPRD_MINI_SYSDUMP and
+# SPRD_NATIVE_HANG_MONITOR all built IN, while the vendor 5.15 fragment ships
+# the first and third as modules.  That difference matters: these register
+# panic and hard-hang notifiers, so if the module has not been insmod'd by the
+# time things go wrong, the handler is not resident and no dump gets written.
+# A module is strictly worse here than the configuration the vendor itself
+# ships and boots on this SoC, so promote them to built-in.
+#
+# Deliberate exception to "keep the GKI Image lean": these are correctness and
+# diagnostic paths for a board we cannot serial-console, not a performance
+# change, and they are what the vendor validated on ums9230.  SPRD_SYSDUMP also
+# gates on !KEXEC_CORE, which the merged config leaves off.
+CONFIG_SPRD_SYSDUMP=y
+CONFIG_SPRD_NATIVE_HANG_MONITOR=y
+
+# --- Deliberately NOT enabled (flagged for review) -------------------------
+# UNISOC_MINIDUMP_FTRACE copies the ftrace ring buffer into the sysdump
+# minidump on oops -- genuinely useful for a bring-up port.  It is off in the
+# vendor fragment, and gki_defconfig enables no tracing at all (no
+# CONFIG_TRACING / CONFIG_FTRACE), so the ring buffer this code drains would
+# never be populated.  Doing it properly means adding ftrace to the GKI Image
+# plus 8 KiB * UNISOC_MINIDUMP_FTRACE_SIZE_KB (2 MiB at the default 256) of
+# per-CPU buffer -- too much for a first boot we want to stay minimal.
+# Recipe when it is wanted:
+#   CONFIG_TRACING=y
+#   CONFIG_FTRACE=y
+#   CONFIG_UNISOC_MINIDUMP_FTRACE=y
+#   CONFIG_UNISOC_MINIDUMP_FTRACE_SIZE_KB=256
+#
+# UNISOC_CACHEDUMP is blocked the same way: it depends on SPRD_DEBUG, which the
+# vendor fragment turns off.  cachedump hands debug info to u-boot to write to
+# eMMC after a sysdump, so it is only worth having once we know the u-boot
+# half of that path runs -- and flipping the broad SPRD_DEBUG switch to find
+# out is not a trade worth making before the phone boots.
