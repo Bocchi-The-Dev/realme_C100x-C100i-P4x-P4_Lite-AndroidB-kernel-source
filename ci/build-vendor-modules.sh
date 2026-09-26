@@ -411,7 +411,8 @@ if [ -n "${UNITS_FILE:-}" ]; then
 	mapfile -t UNITS <"${UNITS_FILE}"
 else
 	mapfile -t UNITS < <(find kernel_modules -name Kbuild -printf '%h\n' \
-		| sort -u | grep -v '/display/dispc$' | grep -v '/mali/csf/ipa_control$' \
+		| sort -u | grep -v '/display/dispc$' | grep -v '/mali/csf/ipa_context$' \
+	| grep -v '/mali/csf/ipa_control$' | grep -v '/common/camera/cam_sys$' \
 		| grep -v '/gpu/midgard/mali$' | grep -v '/gpu/gondul/mali$' \
 		| grep -v '/gpu/natt/mali/csf$')
 fi
@@ -419,6 +420,20 @@ fi
 echo "discovered ${#UNITS[@]} external module units (parallel=${JOBS}, timeout=${UNIT_TIMEOUT}s each)"
 echo "skipping kernel_modules/kernel5.15/display/dispc -- duplicate of in-tree sprd-drm"
 echo "skipping */mali/csf/ipa_control -- a Kbuild fragment included by its parent csf/Kbuild, not a unit"
+# common/camera/cam_sys is excluded because it COLLIDES on the output name with
+# common/camera/core: both Kbuilds set "KO_MODULE_NAME := sprd_camera".  The
+# vendor's build only ever builds one of the two, so the collision never surfaces
+# there; we build both, they fight over \${MODOUT}/sprd_camera, and since cam_sys
+# succeeds while core fails, cam_sys's code was being packaged as sprd_camera.ko
+# -- the WRONG driver under the exact name the loader uses.
+#
+# Which one is legitimate: the device's modules.load wants sprd_camera.ko and has
+# no sprd_camsys.ko, and the 5.4 sprd_camera.ko carries embedded build paths
+# under camera/core/isp2.6/, so core is the real producer and cam_sys is either
+# misnamed in this tree or not shipped on this board at all.  Until
+# BSP_BOARD_CAMERA_MODULE_ISP_VERSION lets core build, the correct outcome is an
+# ABSENT sprd_camera.ko, not a mislabeled one.
+echo "skipping common/camera/cam_sys -- same KO_MODULE_NAME (sprd_camera) as camera/core"
 echo "skipping gpu/{midgard,gondul}/mali -- platform dirs are pike2/sharkle and sharkl5Pro;"
 echo "  this board is qogirl6 and its GPU is natt (DT: sprd,mali-natt)"
 
@@ -497,9 +512,13 @@ for d in $(grep '^FAIL ' "${RESULTS}" | sed 's/^FAIL //'); do
 	# camera/cpp depends on it.  Testing -d flagged that placeholder as a stale
 	# artifact, which was a false positive -- and a check that cries wolf gets
 	# ignored, so it has to be right.
-	if [ -n "$(find "${MODOUT}" -name "${n}*.ko" -print -quit 2>/dev/null)" ] \
+	# EXACT name, not ${n}*.ko.  The glob form produced two false positives out
+	# of three: mcdt_hw*.ko matched mcdt_hw_r2p0.ko from the SUCCESSFUL sibling
+	# unit, and snd-soc-sprd-codec-sc2721*.ko matched the -power and -power-dev
+	# units' output.  A check that flags healthy siblings trains you to ignore it.
+	if [ -n "$(find "${MODOUT}" -name "${n}.ko" -print -quit 2>/dev/null)" ] \
 	   || [ -n "$(find "${KSRC}/${d}" -name '*.ko' -print -quit 2>/dev/null)" ]; then
-		echo "  !! FAILED unit ${d} still has a .ko named ${n}*.ko"
+		echo "  !! FAILED unit ${d} still has ${n}.ko"
 		stale=$((stale + 1))
 	fi
 done
