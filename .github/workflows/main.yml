@@ -232,6 +232,28 @@ jobs:
           echo "vendor modules : $(find pkg/modules-vendor  -name '*.ko' | wc -l)"
           du -sh pkg
 
+      # Generate the load list and the depmod index files.
+      #
+      # This is the deliverable that makes a vendor replacement possible.  The
+      # stock modules.load cannot be reused: it names 5.4 modules whose symbol
+      # CRCs belong to the 5.4 kernel, AND the set we build is not a subset of
+      # the stock set -- the tree renames some modules, omits others, and builds
+      # many the stock loader never named.  So the list is derived rather than
+      # edited: seed from the stock list, map the renames, close over the
+      # dependency graph from modinfo, then topologically sort.
+      #
+      # modules.dep/alias/symbols/softdep are regenerated too, because anything
+      # using modprobe rather than plain insmod reads those, and leaving stale
+      # ones pointing at 5.4 modules would be worse than having none.
+      - name: Generate modules.load and depmod index
+        run: |
+          mkdir -p pkg/loadlist
+          KVER=$(make LLVM=1 ARCH=arm64 O=out -s kernelrelease)
+          KVER="${KVER}" KBUILD_OUT="${PWD}/out" \
+            ./ci/gen-modules-load.sh ci/modules.load.stock out/.config \
+              pkg/loadlist pkg/modules-intree pkg/modules-vendor
+          ls -la pkg/loadlist/
+
       # Does our module set actually satisfy the X6525's loader?
       #
       # The stock /vendor/lib/modules/modules.load names 133 modules in
@@ -277,6 +299,13 @@ jobs:
           name: modules-vendor-${{ github.sha }}
           path: pkg/modules-vendor/
           if-no-files-found: warn
+
+      - name: Upload load list
+        uses: actions/upload-artifact@v4
+        with:
+          name: loadlist-${{ github.sha }}
+          path: pkg/loadlist/
+          if-no-files-found: error
 
       # Per-unit build logs for the vendor modules.  Without these, a failed unit
       # is unattributable -- we learn only that it failed, never why.
