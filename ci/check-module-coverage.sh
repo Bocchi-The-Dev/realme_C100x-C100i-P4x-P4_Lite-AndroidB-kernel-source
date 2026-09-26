@@ -122,11 +122,17 @@ if [ -s "${missing_list}" ]; then
 	while read -r m; do
 		# Classify against the stock name AND its 5.15 name, because the
 		# missing list carries stock names while DEVICE_CRITICAL is written
-		# in 5.15 names.  Without both, a renamed-but-missing module such as
-		# mali_kbase (ours would be mali_gondul) would be filed as merely
-		# optional and the GPU gap would stay invisible.
+		# in 5.15 names.
+		#
+		# The SUBJECT is the list and the PATTERN is the name being looked
+		# for.  An earlier version had it the other way round -- subject
+		# "${DEVICE_CRITICAL} ${resolved}", pattern " ${m} " -- which asks
+		# whether m occurs inside the category list rather than whether the
+		# category list contains m.  Every missing module therefore came out
+		# DEVICE-CRITICAL, which is how 51 gaps all got tagged
+		# "device-critical" and the report became worthless.
 		resolved=$(resolve "${m}")
-		case " ${DEVICE_CRITICAL} ${resolved} " in
+		case " ${DEVICE_CRITICAL} " in
 		*" ${m} "*|*" ${resolved} "*)
 			echo "   *** DEVICE-CRITICAL  ${m}.ko  (no boot, no camera/gpu/wifi)"
 			;;
