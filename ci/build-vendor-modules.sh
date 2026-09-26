@@ -47,6 +47,7 @@ build_one() {
 	if [ -f "${KSRC}/${d}/Makefile" ]; then
 		if timeout "${UNIT_TIMEOUT}" make -C "${KSRC}/${d}" \
 			BSP_KERNEL_PATH="${KBUILD}" BSP_MODULES_OUT="${MODOUT}" \
+			"${BSP_VARS[@]}" \
 			ARCH=arm64 LLVM=1 LLVM_IAS=1 -j1 modules >"${log}" 2>&1; then
 			built=1
 		fi
@@ -54,6 +55,7 @@ build_one() {
 	if [ "${built}" = 0 ]; then
 		if timeout "${UNIT_TIMEOUT}" make -C "${KBUILD}" \
 			M="${KSRC}/${d}" src="${KSRC}/${d}" \
+			"${BSP_VARS[@]}" \
 			ARCH=arm64 LLVM=1 LLVM_IAS=1 -j1 modules >>"${log}" 2>&1; then
 			built=1
 		fi
@@ -67,6 +69,35 @@ build_one() {
 		echo "  FAILED  ${d}   (log: ${tag}.log)"
 	fi
 }
+# The BSP_* variables the unit Kbuilds gate on.  Not optional: the vendor's own
+# build system exports them, and without them the Kbuilds silently take the
+# wrong branch.  Two of them caused real, essential failures:
+#
+#   BSP_KERNEL_VERSION=kernel5.15
+#       wcn/wlan/wlan_combo gates its include path on this:
+#         ifeq ($(strip $(BSP_KERNEL_VERSION)),kernel5.15)
+#         KO_MODULE_PATH := $(src)
+#       Unset, KO_MODULE_PATH stays empty, no -I is emitted, and
+#       common/chip_ops.h dies with "fatal error: 'common/cmd.h' file not
+#       found" even though the header is sitting in the source tree.
+#
+#   BSP_KERNEL_BUILD_CONFIG=build.config.gki.aarch64.ums9230_
+#       Selects the per-SoC defines.  For audio/sprd/codec/sprd/sc2730/codec,
+#       -DCONFIG_SND_SOC_UNISOC_CODEC_SC2730 is emitted ONLY under the
+#       ums9230_ build config, so without it the codec compiles with no
+#       configuration at all.  The trailing underscore is the vendor's padding
+#       convention, not a typo.
+#
+# Deliberately NOT set, because a wrong value is worse than an unset one: it
+# would select a DIFFERENT SoC's defines rather than simply selecting none.
+#   BSP_DTBO, BSP_MODULE_DISP_VERSION, BSP_BOARD_NAME, BSP_MODULE_GPU_VERSION,
+#   BSP_BOARD_CAMERA_MODULE_*, BSP_BOARD_PRODUCT_USING_VDSP.
+BSP_VARS=(
+	"BSP_KERNEL_VERSION=kernel5.15"
+	"BSP_KERNEL_BUILD_CONFIG=build.config.gki.aarch64.ums9230_"
+)
+export BSP_VARS
+
 export -f build_one
 # RESULTS must be exported too: xargs runs build_one in a separate `bash -c`,
 # and an unexported variable is empty there, so the per-unit result lines were
@@ -90,8 +121,12 @@ echo "skipping kernel_modules/kernel5.15/display/dispc -- duplicate of in-tree s
 printf '%s\n' "${UNITS[@]}" \
 	| xargs -P "${JOBS}" -I{} bash -c 'build_one "$1"' _ {}
 
-ok_count=$(grep -c '^OK ' "${RESULTS}" 2>/dev/null || echo 0)
-fail_count=$(grep -c '^FAIL ' "${RESULTS}" 2>/dev/null || echo 0)
+# NOTE: no "|| echo 0" here.  grep -c prints 0 AND exits 1 when there is no
+# match, so the || would append a second 0 and make the variable "0\n0", which
+# then blows up the $(( )) arithmetic below.  The assignment captures grep's
+# stdout regardless of its exit status, so ${x:-0} is the correct default.
+ok_count=$(grep -c '^OK ' "${RESULTS}" 2>/dev/null); ok_count=${ok_count:-0}
+fail_count=$(grep -c '^FAIL ' "${RESULTS}" 2>/dev/null); fail_count=${fail_count:-0}
 echo "=== vendor module units built OK : ${ok_count} / $((ok_count + fail_count)) ==="
 echo "=== vendor module units FAILED   : ${fail_count} ==="
 if [ "${fail_count}" -gt 0 ]; then
