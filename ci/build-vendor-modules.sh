@@ -153,6 +153,88 @@ export KSRC KBUILD MODOUT UNIT_TIMEOUT RESULTS
 
 cd "${KSRC}" || exit 1
 
+# ---------------------------------------------------------------------------
+# Build order and symbol staging.
+#
+# The camera units resolve their provider symbols through KBUILD_EXTRA_SYMBOLS,
+# which modpost reads at LINK time.  A consumer built before its provider
+# therefore fails on undefined symbols no matter how correct the source is, and
+# the vendor Makefiles hardcode where they expect to find each symvers file:
+#
+#   KBUILD_EXTRA_SYMBOLS += $(BSP_MODULES_OUT)/<module>/Module.symvers
+#
+# Two distinct problems, both handled here:
+#
+# 1. IN-TREE providers are not units at all.  sprd-ion and sprd-dmabuf are built
+#    by `make modules` from drivers/, so their Module.symvers lands in out/ and
+#    never in $(BSP_MODULES_OUT), where the vendor Makefiles look.  We copy it
+#    across.
+#
+# 2. CONSUMERS need PROVIDERS built first.  The dependency graph, read off the
+#    KBUILD_EXTRA_SYMBOLS lines in each Makefile:
+#      common/camera/core    needs camsys_pw_domain, dmabuf, flash_drv, ion, sensor
+#      common/camera/cam_sys needs camsys_pw_domain, dmabuf, flash_drv, ion, sensor
+#      common/camera/sensor needs camera_pd, camsys_pw_domain
+#      common/camera/cpp    needs camera, camsys_pw_domain, dmabuf, ion
+#    so the order is camsys_pw_domain -> sensor -> camera/camsys -> cpp, and
+#    sprd_camera_pd is required by sensor but has no Kbuild in this tree at all
+#    (common/camera/power only builds sprd_camsys_pw_domain; the sprd_camera_pd
+#    mention is a leftover comment).  An absent symvers file makes modpost abort
+#    with "could not open MODULE.symvers", so we stage an empty one and SAY SO,
+#    rather than either aborting the build or pretending the dependency is met.
+
+# Modules the vendor Makefiles expect to find under $(BSP_MODULES_OUT).
+STAGE_PROVIDERS="sprd-ion sprd-dmabuf"
+
+# Units that must be built before others, in this order.
+ORDERED_UNITS="
+kernel_modules/common/camera/power
+kernel_modules/common/camera/sensor
+kernel_modules/common/camera/core
+kernel_modules/common/camera/cam_sys
+kernel_modules/common/camera/cpp
+"
+
+stage_intree_symvers() {
+	local m ko src dst
+	for m in ${STAGE_PROVIDERS}; do
+		ko=$(find "${KBUILD}" -name "${m}.ko" -print -quit 2>/dev/null)
+		if [ -z "${ko}" ]; then
+			echo "  !! ${m}.ko not built in-tree -- ${m} symbols will be unresolved"
+			continue
+		fi
+		src="$(dirname "${ko}")/Module.symvers"
+		dst="${MODOUT}/${m}"
+		if [ -f "${src}" ]; then
+			mkdir -p "${dst}"
+			cp -f "${src}" "${dst}/Module.symvers"
+			echo "  staged ${m}/Module.symvers  (from ${src#"${KBUILD}/"})"
+		else
+			echo "  !! ${src} missing -- cannot stage ${m}"
+		fi
+	done
+}
+
+# Log, loudly, any provider symvers the vendor Makefiles want that we still do
+# not have.  An empty file keeps modpost from aborting; the message is the point.
+report_missing_symvers() {
+	local u name missing=0
+	for u in ${ORDERED_UNITS}; do
+		[ -f "${KSRC}/${u}/Makefile" ] || continue
+		for name in $(grep -oE '\$\(BSP_MODULES_OUT\)/[A-Za-z0-9_-]+' \
+			"${KSRC}/${u}/Makefile" 2>/dev/null | sed 's#.*/##' | sort -u); do
+			if [ ! -f "${MODOUT}/${name}/Module.symvers" ]; then
+				mkdir -p "${MODOUT}/${name}"
+				: >"${MODOUT}/${name}/Module.symvers"
+				echo "  !! ${u##*/}: no ${name}/Module.symvers -- staged EMPTY."
+				echo "     If it reports undefined symbols, ${name} is a real gap."
+				missing=$((missing + 1))
+			fi
+		done
+	done
+	[ "${missing}" -eq 0 ] && echo "  all provider Module.symvers present"
+}
+
 # Every leaf directory holding a Kbuild is a build unit.  Exclude the
 # display/dispc duplicate: it builds sprd-drm.ko from the same sources as the
 # in-tree drivers/unisoc_platform/sprd_disp, which `make modules` already
@@ -177,8 +259,36 @@ echo "skipping */mali/csf/ipa_control -- a Kbuild fragment included by its paren
 echo "skipping gpu/{midgard,gondul}/mali -- platform dirs are pike2/sharkle and sharkl5Pro;"
 echo "  this board is qogirl6 and its GPU is natt (DT: sprd,mali-natt)"
 
-printf '%s\n' "${UNITS[@]}" \
-	| xargs -P "${JOBS}" -I{} bash -c 'build_one "$1"' _ {}
+# Phase 1: the ordered chain, one at a time.  Sequential because each stage
+# consumes the previous stage's Module.symvers, which modpost needs at link time.
+# Parallelising this is what produced "undefined symbol" failures.
+if [ -n "${ORDERED_UNITS}" ]; then
+	log "phase 1: ordered units (provider symbols must exist first)"
+	stage_intree_symvers
+	for u in ${ORDERED_UNITS}; do
+		# Only units we actually discovered; an excluded one is not a failure.
+		found=0
+		for d in "${UNITS[@]}"; do
+			[ "${d}" = "${u}" ] && { found=1; break; }
+		done
+		if [ "${found}" = 1 ]; then
+			echo "  ordered: ${u}"
+			build_one "${u}"
+		else
+			echo "  ordered: ${u} -- not a discovered unit, skipping"
+		fi
+	done
+fi
+
+# Phase 2: everything else, in parallel as before.
+log "phase 2: remaining units in parallel (parallel=${JOBS})"
+mapfile -t REST < <(printf '%s\n' "${UNITS[@]}" | grep -vxF -f <(printf '%s\n' ${ORDERED_UNITS}))
+if [ "${#REST[@]}" -gt 0 ]; then
+	printf '%s\n' "${REST[@]}" \
+		| xargs -P "${JOBS}" -I{} bash -c 'build_one "$1"' _ {}
+fi
+
+report_missing_symvers
 
 # NOTE: no "|| echo 0" here.  grep -c prints 0 AND exits 1 when there is no
 # match, so the || would append a second 0 and make the variable "0\n0", which

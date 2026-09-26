@@ -175,3 +175,11 @@ CONFIG_ION=y
 CONFIG_ION_SYSTEM_HEAP=y
 CONFIG_ION_CMA_HEAP=m
 CONFIG_ION_SPRD=m
+
+# CONFIG_UNISOC_DMABUF=m -> sprd-dmabuf.ko
+#   Another module.load entry with no config behind it, found the same way as
+#   the ION group.  drivers/unisoc_platform/dmabufheap/Makefile.  It is a
+#   provider, not a leaf: common/camera/{core,cam_sys,cpp} all do
+#     KBUILD_EXTRA_SYMBOLS += $(BSP_MODULES_OUT)/sprd-dmabuf/Module.symvers
+#   so until this exists the camera stack cannot resolve its symbols.
+CONFIG_UNISOC_DMABUF=m
