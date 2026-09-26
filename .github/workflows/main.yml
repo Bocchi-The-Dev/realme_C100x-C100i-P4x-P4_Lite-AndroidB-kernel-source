@@ -1,0 +1,133 @@
+name: Build Kernel
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ master, main, 5.15-gki, dev ]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    env:
+      CLANG_VERSION: r450784e
+      CLANG_DIR: /tmp/clang-${{ env.CLANG_VERSION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flex bison bc cpio libssl-dev libelf-dev \
+            libncurses-dev zlib1g-dev libyaml-dev lz4 zstd device-tree-compiler \
+            python3 rsync kmod dwarves zip unzip
+
+      # The tree pins CLANG_VERSION=r450784e (build.config.constants).  This
+      # mirror is the same prebuilt the vendored build_5.15.sh uses.
+      - name: Fetch clang-${{ env.CLANG_VERSION }}
+        run: |
+          curl -sSL -o /tmp/clang.tar.gz \
+            "https://github.com/ravindu644/Android-Kernel-Tutorials/releases/download/toolchains/clang-${{ env.CLANG_VERSION }}.tar.gz"
+          mkdir -p "$CLANG_DIR"
+          tar xzf /tmp/clang.tar.gz -C "$CLANG_DIR" --strip-components=1
+          echo "$CLANG_DIR/bin" >> "$GITHUB_PATH"
+
+      - name: Show toolchain
+        run: |
+          clang --version
+          ld.lld --version
+
+      # gki_defconfig is the GKI 2.0 base; sprd_gki_qogirn6pro.fragment is the
+      # Unisoc qogirn6pro/ums9230 (our SoC, T606) vendor fragment.  It sets
+      # CONFIG_ARM_SPRD_CPUFREQ_V2=m -- the TEE DVFS driver as a MODULE, which
+      # is the configuration that boots correctly.  (Built-in =y wedges the
+      # boot before USB comes up on this platform.)
+      - name: Generate config
+        run: |
+          export PATH="${CLANG_DIR}/bin:${PATH}"
+          ./scripts/kconfig/merge_config.sh -m -O out \
+            arch/arm64/configs/gki_defconfig \
+            arch/arm64/configs/sprd_gki_qogirn6pro.fragment
+          cp out/.config .config
+          make LLVM=1 ARCH=arm64 olddefconfig
+          grep -E "CONFIG_ARM_SPRD_CPUFREQ_V2|CONFIG_ARCH_SPRD" out/.config || \
+            grep -E "CONFIG_ARM_SPRD_CPUFREQ_V2|CONFIG_ARCH_SPRD" .config
+          echo "kernelrelease: $(make LLVM=1 ARCH=arm64 -s kernelrelease)"
+
+      # Image + the ums9230 device DTB/DTBO.  The device uses a base DTB plus a
+      # DTBO overlay (androidboot.dtbo_idx on the running device), so both are
+      # needed: ums9230-base.dtb and ums9230-1h10-overlay.dtbo.
+      - name: Build kernel + DTB/DTBO
+        run: |
+          export PATH="${CLANG_DIR}/bin:${PATH}"
+          make LLVM=1 LLVM_IAS=1 ARCH=arm64 O=out -j$(nproc) \
+            Image dtbs
+          ls -la out/arch/arm64/boot/Image
+          ls -la out/arch/arm64/boot/dts/sprd/ums9230-base.dtb 2>/dev/null || \
+            find out/arch/arm64/boot/dts -name "ums9230-base.dtb"
+          find out/arch/arm64/boot/dts -name "ums9230-1h10-overlay.dtbo" -o \
+               -name "ums9230-1h10-overlay.dtb" | head
+
+      # GKI 2.0 vendor modules (audio/display/gpu/input/touchscreen/wcn/...),
+      # built out-of-tree against the just-built O=out tree.  These carry the
+      # sprd cpufreq-v2 + sip_svc modules the device loads from the vendor_boot
+      # ramdisk, and must be ABI-matched to THIS kernel build.
+      - name: Build vendor modules (kernel_modules)
+        run: |
+          export PATH="${CLANG_DIR}/bin:${PATH}"
+          make LLVM=1 LLVM_IAS=1 ARCH=arm64 O=out -j$(nproc) modules_prepare
+          cd kernel_modules/kernel5.15
+          for d in audio display gpu input touchscreen wcn video vender \
+                   dmabufheap npu nfc microarray; do
+            [ -d "$d" ] || continue
+            echo "=== building $d ==="
+            make -C "$d" KDIR="$GITHUB_WORKSPACE/out" \
+              LLVM=1 LLVM_IAS=1 ARCH=arm64 || echo "WARN: $d failed (continuing)"
+          done
+          find . -name "*.ko" | head -50
+          find . -name "*.ko" | wc -l
+
+      - name: Package artifacts
+        run: |
+          mkdir -p pkg/boot-Image pkg/dtb pkg/modules
+          cp out/arch/arm64/boot/Image pkg/boot-Image/ 2>/dev/null || true
+          find out/arch/arm64/boot/dts -name "ums9230-base.dtb" \
+            -exec cp {} pkg/dtb/ \; 2>/dev/null || true
+          find out/arch/arm64/boot/dts -name "ums9230-1h10-overlay.dtbo" \
+            -exec cp {} pkg/dtb/ \; 2>/dev/null || true
+          find kernel_modules -name "*.ko" -exec cp --parents {} pkg/modules/ \; 2>/dev/null || true
+          # config snapshot for reference/debug
+          cp out/.config pkg/ 2>/dev/null || cp .config pkg/ 2>/dev/null || true
+          echo "=== pkg contents ==="
+          find pkg -type f | head -60
+          du -sh pkg
+
+      - name: Upload Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: Image-${{ github.sha }}
+          path: pkg/boot-Image/
+          if-no-files-found: error
+
+      - name: Upload DTB/DTBO
+        uses: actions/upload-artifact@v4
+        with:
+          name: dtb-${{ github.sha }}
+          path: pkg/dtb/
+          if-no-files-found: warn
+
+      - name: Upload vendor modules
+        uses: actions/upload-artifact@v4
+        with:
+          name: modules-${{ github.sha }}
+          path: pkg/modules/
+          if-no-files-found: warn
+
+      - name: Upload config
+        uses: actions/upload-artifact@v4
+        with:
+          name: config-${{ github.sha }}
+          path: pkg/.config
+          if-no-files-found: warn
