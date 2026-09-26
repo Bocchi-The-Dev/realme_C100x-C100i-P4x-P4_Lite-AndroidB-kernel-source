@@ -22,16 +22,7 @@
 # This is to prevent any build issue due to wrong path.
 src:=$(if $(patsubst /%,,$(src)),$(srctree)/$(src),$(src))
 #sprd: new platform dir for kernel
-# The platform tree lives INSIDE this directory in this source layout
-# (gpu/gondul/mali/platform/devicetree/), not at ../../sprd/gondul/platform/
-# as in the vendor's original tree.  With the old path the build died with
-#   Kbuild:392: .../mali/../../sprd/gondul/platform/devicetree/Kbuild:
-#   No such file or directory
-# because that directory simply does not exist here.  Every use below is
-# relative to $(src) (this directory), so "platform" satisfies all of them:
-# the -I, the MALI_KBASE_PLATFORM_PATH define, the config object and the
-# included Kbuild.
-platform_dir:=platform
+platform_dir:=../../sprd/gondul/platform
 
 #
 # Prevent misuse when Kernel configurations are not present by default
