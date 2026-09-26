@@ -109,6 +109,9 @@ static int sprd_vchg_change(struct notifier_block *nb, unsigned long limit, void
 	bool chgr_online = false;
 	u32 events = 0, events1 = 0;
 	unsigned long usb_limit = limit * 1000;
+	struct power_supply *psy_charge;
+	union power_supply_propval val;
+	int ret;
 
 	if (!info) {
 		pr_err("%s:line%d: NULL pointer!!!\n", SPRD_VCHG_TAG, __LINE__);
@@ -131,16 +134,37 @@ static int sprd_vchg_change(struct notifier_block *nb, unsigned long limit, void
 			info->usb_limit = -EINVAL;
 			return NOTIFY_OK;
 		}
+		/*
+		 * The three declarations above, and the pr_err() argument order below,
+		 * are repairs to this file rather than to the 5.15 tree's intent.
+		 *
+		 * The typec_extcon branch below referenced psy_charge, val and ret
+		 * without ever declaring them, so this file could not compile at all --
+		 * CONFIG_CHARGER_MANAGER pulls sprd_vchg_detect.o into
+		 * sprd-charger-manager.o, which is why it only surfaces when that
+		 * symbol is turned on.  The 5.4 tree's sprd_vchg_change() is an
+		 * entirely different function that touches none of these, so there is
+		 * no earlier revision of this branch to copy the declarations from;
+		 * they are written out here to match the file's own style.
+		 *
+		 * The log lines were pr_err(port, "%s, ...", __func__), i.e. `port`
+		 * was being passed as the FORMAT STRING.  Whatever `port` was meant
+		 * to be, that is never right: pr_err's first argument has to be a
+		 * literal, or -Wformat-security fires and the output is the tag
+		 * concatenated with arguments that no format specifier consumes.
+		 * SPRD_VCHG_TAG is the tag every other pr_err() in this file uses, so
+		 * that is what these now print.
+		 */
 		psy_charge = power_supply_get_by_name("ac");
 		if (!psy_charge) {
-			pr_err(port, "%s, psy_charge is NULL\n", __func__);
+			pr_err("%s: %s, psy_charge is NULL\n", SPRD_VCHG_TAG, __func__);
 		} else {
 			val.intval = limit;
 			ret = power_supply_set_property(psy_charge, POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT, &val);
 			if (ret < 0) {
-				pr_err(port, "%s %dmA failed\n", __func__, limit);
+				pr_err("%s: %s %dmA failed, ret %d\n", SPRD_VCHG_TAG, __func__, limit, ret);
 			} else {
-				pr_err(port, "%s %dmA success\n", __func__, limit);
+				pr_err("%s: %s %dmA success\n", SPRD_VCHG_TAG, __func__, limit);
 			}
 		}
 		cm_notify_event(info->psy, CM_EVENT_UPDATE_USB_LIMINT, NULL);
