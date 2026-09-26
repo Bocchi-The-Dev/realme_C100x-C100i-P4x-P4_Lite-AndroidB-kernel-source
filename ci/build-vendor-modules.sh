@@ -135,6 +135,18 @@ build_one() {
 		echo "OK ${d}" >>"${RESULTS}"
 		echo "  ok      ${d}"
 	else
+		# Purge AGAIN on failure, so a failed unit cannot leave a .ko behind.
+		#
+		# Purging only before the build is not enough.  It guarantees we do not
+		# inherit a stale artifact, but it does not stop the build itself from
+		# leaving one, and a .ko that survives a FAILED unit is worse than no
+		# .ko at all: ci/check-module-coverage.sh reported sprd_camera.ko as
+		# COVERED while camera/core was in the FAILED list of the same run,
+		# because the packaging step globs the filesystem rather than consulting
+		# the results.  Enforcing the invariant here means the filesystem can
+		# never disagree with the build result, whatever the mechanism did.
+		rm -rf "${MODOUT:?}/${name}" 2>/dev/null
+		find "${KSRC}/${d}" -name '*.ko' -delete 2>/dev/null
 		echo "FAIL ${d}" >>"${RESULTS}"
 		echo "  FAILED  ${d}   (log: ${tag}.log)"
 	fi
@@ -469,6 +481,26 @@ fi
 # (find kernel_modules -name '*.ko'); this makes the script agree.
 produced=$( { find "${MODOUT}" -name '*.ko'; find "${KSRC}/kernel_modules" -name '*.ko'; } | wc -l)
 echo "=== .ko produced: ${produced} ==="
+
+# Final consistency check: the number of .ko must be consistent with the number
+# of units reported ok.  Cheap, and it turns "the filesystem disagrees with the
+# build" from a silent lie into a visible failure.
+stale=0
+for d in $(grep '^FAIL ' "${RESULTS}" | sed 's/^FAIL //'); do
+	n=$(sed -n 's/^KO_MODULE_NAME[[:space:]]*[:?+]\{0,1\}=[[:space:]]*\([A-Za-z0-9_-]\+\).*/\1/p' \
+		"${KSRC}/${d}/Kbuild" 2>/dev/null | head -1)
+	[ -n "${n}" ] || n=$(basename "${d}")
+	if [ -e "${MODOUT}/${n}.ko" ] || [ -d "${MODOUT}/${n}" ]; then
+		echo "  !! FAILED unit ${d} still has output named ${n}"
+		stale=$((stale + 1))
+	fi
+done
+if [ "${stale}" -gt 0 ]; then
+	echo "=== ${stale} failed unit(s) left output behind -- filesystem disagrees"
+	echo "    with the build result.  This must be 0."
+	exit 1
+fi
+echo "=== consistency: no failed unit left a .ko behind ==="
 
 # Board-critical assertion.
 #
