@@ -66,9 +66,14 @@ jobs:
           mkdir -p out
           ./scripts/kconfig/merge_config.sh -m -O out \
             arch/arm64/configs/gki_defconfig \
-            arch/arm64/configs/sprd_gki_sharkl6.fragment
+            arch/arm64/configs/sprd_gki_sharkl6.fragment \
+            arch/arm64/configs/nova_ums9230.fragment
           make LLVM=1 LLVM_IAS=1 ARCH=arm64 O=out olddefconfig
           grep -E "CONFIG_ARM_SPRD_CPUFREQ_V2|CONFIG_ARCH_SPRD" out/.config
+          # Full LTO OOM-kills the runner at the `LTO vmlinux.o` link; assert
+          # we really got ThinLTO (and that CFI survived) before spending
+          # ~20 min on a build that would die the same way again.
+          grep -E "CONFIG_LTO_CLANG_THIN|CONFIG_LTO_CLANG_FULL|CONFIG_CFI_CLANG" out/.config
           echo "kernelrelease: $(make LLVM=1 ARCH=arm64 O=out -s kernelrelease)"
 
       # The kernel Image is the main GKI deliverable and builds cleanly.

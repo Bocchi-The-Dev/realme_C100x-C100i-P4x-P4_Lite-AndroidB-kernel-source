@@ -1,0 +1,13 @@
+# Nova: Infinix X6525 (ums9230) GKI 2.0 build overrides.
+#
+# Merge order: gki_defconfig -> sprd_gki_sharkl6.fragment -> this fragment.
+#
+# gki_defconfig selects CONFIG_LTO_CLANG_FULL=y, whose single-process
+# `LTO vmlinux.o` link peaks above the 14 GiB available on a
+# ubuntu-22.04 GitHub runner and gets OOM-killed (exit 143).  ThinLTO is
+# the same optimization model (whole-program, cross-module inlining) but
+# parallelises the backend, so peak RSS drops by an order of magnitude.
+# It also keeps CONFIG_CFI_CLANG=y valid -- CFI_CLANG requires LTO, so
+# plain "disable LTO" is not an option here.
+CONFIG_LTO_CLANG_FULL=n
+CONFIG_LTO_CLANG_THIN=y
