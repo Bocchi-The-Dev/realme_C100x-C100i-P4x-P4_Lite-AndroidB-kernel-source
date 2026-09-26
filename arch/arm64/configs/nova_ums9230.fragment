@@ -195,20 +195,51 @@ CONFIG_ION_SPRD=m
 #          that file; see the comment there.
 #
 #   charger-manager  compatible = "charger-manager"  status = "okay"
-#       -> the multi-charger policy layer that arbitrates between the charging
-#          IC and the fuel gauge.  Driver: drivers/power/supply/charger-manager.c
-#          plus sprd_vote.o, sprd_vchg_detect.o and sprd_fchg_extcon.o, built as
-#          sprd-charger-manager.ko, again matching the stock name exactly.  The
-#          vendor's own sprd_gki_sharkl6.fragment explicitly disables this
-#          symbol; this fragment is merged last and overrides it.
+#       -> BLOCKED, and deliberately left off.  See the long note below; the
+#          short version is that this tree ships two charger-manager
+#          implementations that both export cm_notify_event, and modpost treats
+#          that as fatal for the entire build.
 #
-# Both depend on I2C, which the sharkl6 fragment already selects, so no ordering
-# constraint applies here.  CONFIG_SPRD_UID (sprd_uid.ko, the vendor unit that
-# backs the sprd_uid DT node) is already enabled by the sharkl6 fragment and
-# needs no directive here -- only the rename in ci/module-aliases.stock515, since
-# the stock loader spells that module misc_sprd_uid.ko.
+# CONFIG_SPRD_UID (sprd_uid.ko, the vendor unit that backs the sprd_uid DT node)
+# is already enabled by the sharkl6 fragment and needs no directive here -- only
+# the rename in ci/module-aliases.stock515, since the stock loader spells that
+# module misc_sprd_uid.ko.
+#
+# CONFIG_CHARGER_AW32257 depends on I2C, which the sharkl6 fragment already
+# selects.  This module has no undefined oplus_* or cm_notify_event symbols, so
+# unlike sprd-charger-manager it stands alone and builds cleanly on its own.
 CONFIG_CHARGER_AW32257=m
-CONFIG_CHARGER_MANAGER=m
+#
+# CONFIG_CHARGER_MANAGER is deliberately NOT set, even though its DT node is
+# status = "okay" and the stock loader names sprd-charger-manager.ko.  Enabling
+# it fails like this, and the failure is global, not local to the module:
+#
+#   FATAL: modpost: drivers/power/oplus/v1/oplus_chg: 'cm_notify_event'
+#   exported twice.  Previous export was in
+#   drivers/power/supply/sprd-charger-manager.ko
+#
+# This tree carries two complete charger-manager implementations.  charger-manager.c
+# exports cm_notify_event at line 9372; the Oplus copy
+# drivers/power/oplus/v1/charger_ic/oplus_battery_ums9230.c exports it at 2719.
+# CONFIG_OPLUS_CHG is m, so oplus_chg.ko gets built, and a repeated EXPORT_SYMBOL
+# is fatal to modpost -- which is how this also swallowed the unrelated
+# aw32257_charger.ko the first time round.  The two are alternatives, the same
+# shape as camera/core versus camera/cam_sys and as the sprd-dmabuf duplicate:
+# two providers of one name.
+#
+# Dropping CONFIG_OPLUS_CHG is NOT the inverse, because the Oplus stack is
+# entangled with the fuel gauge.  sc27xx_fuel_gauge.ko carries two undefined
+# symbols, cm_notify_event and oplus_gauge_init, and oplus_gauge_init is called
+# from unisoc_battery.c:822.  The 5.4 tree does the same at
+# unisoc_battery.c:623, so the Oplus gauge helper is load-bearing in both trees
+# and switching it off breaks the fuel gauge instead of resolving anything.
+# sy65153_wireless_charger.ko also resolves cm_notify_event from it.
+#
+# The stock device loads sprd-charger-manager.ko and zero oplus modules, so the
+# Unisoc side is what this board wants.  Getting there means separating
+# oplus_gauge_init from oplus_chg's cm_notify_event, and charging is the one
+# subsystem where a wrong guess risks the battery.  Left off and documented
+# rather than resolved blind.  See ci/module-aliases.stock515.
 
 # CONFIG_UNISOC_DMABUF is deliberately NOT set.
 #   An earlier revision enabled it, which was wrong.  sprd-dmabuf is ALSO built
