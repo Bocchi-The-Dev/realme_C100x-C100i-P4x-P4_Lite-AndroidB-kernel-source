@@ -1,9 +1,21 @@
 name: Build Kernel
 
+# Manual dispatch only.
+#
+# This used to fire on every push to master/main/5.15-gki/dev, which was
+# reasonable while the box did not exist: CI was the only build path, so a push
+# was the only way to get a verdict.  It is actively harmful now that there is a
+# self-hosted box: every fix/measure/push cycle would also burn a 22-minute
+# hosted runner (17 of which is the kernel Image) to re-derive a result the box
+# produces in seconds, and the resulting run logs then compete with the real
+# work for attention.
+#
+# So: workflow_dispatch only.  Trigger a run from the Actions tab when you
+# actually want the hosted-runner artifacts (Image, dtb, modules zips, per-unit
+# vendor logs) -- e.g. before a flash, or to confirm the box has not drifted
+# from CI.  Day-to-day iteration is: push, then run ci/box-build.sh on the box.
 on:
   workflow_dispatch:
-  push:
-    branches: [ master, main, 5.15-gki, dev ]
 
 jobs:
   build:
