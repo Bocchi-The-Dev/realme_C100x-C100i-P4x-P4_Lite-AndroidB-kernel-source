@@ -25,9 +25,21 @@
 # what happened: 178 modules carried -dirty and 96 did not, against a kernel
 # built with -dirty.
 #
-# It is also self-inflicted by this project's own iteration loop, which does
-# path-limited checkouts to avoid a full vmlinux relink.  So the check belongs
-# in the build rather than in a human's memory.
+# There are two distinct causes, and the first one is not the interesting one:
+#
+#   1. The release string moved.  UTS_RELEASE embeds the HEAD commit, so every
+#      commit invalidates every previously built module's vermagic, while kbuild
+#      rebuilds only what changed.  This is the common one and it is invisible:
+#      nothing about a commit implies a full module rebuild.  do_config in
+#      ci/box-build.sh now purges out/ when out/.nova-release moves, but that
+#      detection is defeated if the marker file is removed by hand.
+#
+#   2. The tree was dirty for part of the build, which appends -dirty to some
+#      stages and not others.  This is what the first version of this message
+#      blamed, exclusively, and it was wrong to be confident -- both were true
+#      at different times and the first was the one that actually bit.
+#
+# Either way the check belongs in the build rather than in a human's memory.
 #
 # Usage: ci/check-vermagic.sh <out-dir> [<out-dir> ...]
 #   Each argument is searched for .ko files.  Exits non-zero on any mismatch.
@@ -110,11 +122,23 @@ fi
 if [ "$bad" -ne 0 ]; then
 	echo "  ASSERTION FAILED: $bad of $total modules will not load" >&2
 	echo "  Those modules would be rejected with 'version magic ... should be'," >&2
-	echo "  which is a failure on the device and not in this build.  Usually a" >&2
-	echo "  path-limited 'git checkout -f FETCH_HEAD -- <paths>' left the tree" >&2
-	echo "  dirty, so some stage built without -dirty and some with.  Fix by" >&2
-	echo "  rebuilding from a clean tree: git checkout -f FETCH_HEAD (no path" >&2
-	echo "  limit), then a full 'make Image modules'." >&2
+	echo "  which is a failure on the device and not in this build.  Two causes," >&2
+	echo "  both of which have bitten here, listed most common first:" >&2
+	echo >&2
+	echo "  1. The release string moved between builds.  UTS_RELEASE is" >&2
+	echo "     5.15.189-g<short sha>, so every commit changes it, and it is in" >&2
+	echo "     every module's vermagic.  kbuild only rebuilds what changed, so a" >&2
+	echo "     build after a commit leaves the untouched modules on the previous" >&2
+	echo "     release.  ci/box-build.sh's do_config now purges out/ when" >&2
+	echo "     out/.nova-release differs from HEAD, so 'box-build.sh all' should" >&2
+	echo "     not hit this.  If it did, the marker was probably removed by hand," >&2
+	echo "     which disables the detection.  Fix: rm -rf out and rebuild." >&2
+	echo >&2
+	echo "  2. The tree was dirty for part of the build.  A path-limited" >&2
+	echo "     'git checkout -f FETCH_HEAD -- <paths>' stages those paths, so" >&2
+	echo "     setlocalversion appends -dirty to later builds but not earlier" >&2
+	echo "     ones.  Fix: 'git checkout -f FETCH_HEAD' with no path limit, and" >&2
+	echo "     keep out/ and pkg/ in .gitignore." >&2
 	exit 1
 fi
 
