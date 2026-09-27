@@ -176,6 +176,41 @@ CONFIG_ION_SYSTEM_HEAP=y
 CONFIG_ION_CMA_HEAP=m
 CONFIG_ION_SPRD=m
 
+# --- EROFS: microLZMA decompression, so our module partition can be packed ----
+#
+# Required, and not optional.  The modules ship in vendor_dlkm_a, which is a
+# 7.50 MB erofs partition, and the loadable set is 33 MB of .ko before
+# compression.  Measured with mkfs.erofs against the real set:
+#
+#   lz4hc,level=12   11.24 MB   over by 3.7 MB
+#   lzma,level=9      6.59 MB   fits, 0.9 MB spare
+#   zstd,level=19     7.26 MB   fits, but no zstd support exists in this tree
+#
+# So lz4 is the only algorithm this kernel can read (EROFS_FS_ZIP, which the
+# sharkl6 fragment already sets) and lz4 does not fit.  lzma fits, and the
+# decompressor is already in the tree -- fs/erofs/decompressor_lzma.c, 290
+# lines, implementing microLZMA via xz_dec_microlzma -- it just is not built.
+# This option selects XZ_DEC and XZ_DEC_MICROLZMA itself, so there is nothing
+# else to satisfy.
+#
+# Purely additive: EROFS_FS_ZIP stays on, so the stock vendor partition, which
+# dump.erofs reports as lz4 with lz4_max_distance 65535, keeps mounting
+# untouched.  Only our own vendor_dlkm image uses lzma.
+#
+# Two things this deliberately does NOT do:
+#   * it does not touch the vendor partition.  /vendor/lib/modules is a symlink
+#     to /vendor_dlkm/lib/modules, so the modules are entirely in vendor_dlkm and
+#     vendor needs no change at all;
+#   * it does not resize anything.  vendor_dlkm_a stays at its stock 7.50 MB
+#     and the whole super partition is left alone, which is the point: the
+#     stock layout has enough room once the compression actually works.
+#
+# The help text calls LZMA experimental.  The experimental caveat is about
+# upstream's confidence in the format, not about it being unreadable here: the
+# reader and the writer are the same tree's format, and the alternative is not
+# fitting at all.
+CONFIG_EROFS_FS_ZIP_LZMA=y
+
 # --- Charging: the two drivers this board's own DT nodes ask for ------------
 #
 # Found by auditing every "ABSENT with no built-in equivalent" entry from
