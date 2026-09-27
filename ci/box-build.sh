@@ -94,6 +94,34 @@ ensure_clone() {
 # Copied verbatim from .github/workflows/main.yml.
 do_config() {
 	mkdir -p out
+
+	# UTS_RELEASE is derived from the git describe, so it embeds the HEAD
+	# commit: 5.15.189-g<sha>.  Every commit therefore changes the release
+	# string, and the release string is in both vmlinux (linux_banner) and every
+	# module's vermagic.  kbuild has no idea: it rebuilds only what changed, so
+	# an incremental build after a commit leaves modules carrying the PREVIOUS
+	# release string alongside ones carrying the new one, and the kernel rejects
+	# the stale ones with "version magic ... should be".
+	#
+	# That is not hypothetical.  It happened here: 178 of 371 modules were
+	# unloadable after a commit-and-rebuild, caught by ci/check-vermagic.sh, with
+	# modpost clean and coverage at 94/133.  Nothing else in the build noticed,
+	# because a wrong vermagic is a perfectly valid module as far as every
+	# build-time check is concerned.
+	#
+	# So: if the release string moved, the output tree is stale in a way that
+	# cannot be repaired incrementally, and the only correct response is to
+	# start over.  Within one commit, incremental builds stay fast.
+	local want now have=""
+	want="$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
+	have="$(cat out/.nova-release 2>/dev/null || true)"
+	if [ -n "$have" ] && [ "$have" != "$want" ]; then
+		echo "release moved ${have} -> ${want}: purging out/ (stale vermagic)"
+		rm -rf out
+		mkdir -p out
+	fi
+	printf '%s' "$want" > out/.nova-release
+
 	./scripts/kconfig/merge_config.sh -m -O out \
 		arch/arm64/configs/gki_defconfig \
 		arch/arm64/configs/sprd_gki_sharkl6.fragment \
