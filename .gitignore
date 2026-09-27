@@ -165,3 +165,13 @@ x509.genkey
 
 # Documentation toolchain
 sphinx_*/
+
+# Build and packaging output.  These MUST be ignored, and not merely tidied:
+# UTS_RELEASE gains a -dirty suffix from scripts/setlocalversion whenever
+# `git status --porcelain` is non-empty, and the kernel then rejects any module
+# whose vermagic lacks that suffix.  An untracked pkg/ directory was enough to
+# stamp -dirty into every module built after it appeared, which split a module
+# set across two vermagic strings and made 193 of 371 modules unloadable while
+# every other build check still passed.  See ci/check-vermagic.sh.
+/out/
+/pkg/
