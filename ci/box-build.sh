@@ -144,6 +144,13 @@ do_coverage() {
 		-exec cp --parents {} pkg/modules-vendor/ \; 2>/dev/null || true
 	find kernel_modules -name '*.ko' \
 		-exec cp --parents {} pkg/modules-vendor/ \; 2>/dev/null || true
+	# Assert first that every module will actually load.  A vermagic mismatch
+	# is invisible to every other check here -- the modules compile, modpost is
+	# clean, coverage is high -- and only shows up as 'version magic ... should
+	# be' once the set is on the device.  Run before the coverage report so a
+	# broken set cannot be reported as a good one.
+	./ci/check-vermagic.sh out out/vendor_modules kernel_modules
+
 	./ci/check-module-coverage.sh ci/modules.load.stock \
 		pkg/modules-intree pkg/modules-vendor
 	# Derive modules.load and the depmod index from what we actually built.
