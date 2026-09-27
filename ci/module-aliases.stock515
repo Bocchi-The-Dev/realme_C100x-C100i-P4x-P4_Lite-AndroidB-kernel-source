@@ -46,36 +46,34 @@
 #   access path lives in the card driver.  A DT node existing
 #   (soc/agcp/agdsp-access) is therefore not evidence of a missing module.
 # ---------------------------------------------------------------------------
-# sprd-charger-manager -> (withheld: duplicate cm_notify_event export)
-#   Left unaliased on purpose so it keeps being reported.  This one is NOT a
-#   missing driver and NOT a rename.  Its DT node (charger-manager) is
-#   status = "okay" and the stock loader names sprd-charger-manager.ko, so it
-#   looks like exactly the aw32257_charger case.  It is blocked instead:
+# sprd-charger-manager -> sprd-charger-manager (no rename; built, not mapped)
+#   Recorded here because it was the hardest gap to close and the reason is not
+#   visible from a file listing.  Its DT node is status = "okay" and the stock
+#   loader names sprd-charger-manager.ko, so it looked like the aw32257_charger
+#   case -- one config line.  It was not, because enabling it hit:
 #
 #     FATAL: modpost: drivers/power/oplus/v1/oplus_chg: 'cm_notify_event'
 #     exported twice.  Previous export was in
 #     drivers/power/supply/sprd-charger-manager.ko
 #
-#   This tree has two complete charger-manager implementations, both selected
-#   by config, both exporting cm_notify_event -- charger-manager.c:9372 and
-#   oplus/v1/charger_ic/oplus_battery_ums9230.c:2719.  CONFIG_OPLUS_CHG is m.
-#   modpost treats a repeated EXPORT_SYMBOL as fatal for the WHOLE build, not
-#   just this module, so leaving it enabled cost us aw32257_charger.ko too.
-#
-#   CONFIG_OPLUS_CHG=n does not resolve it: sc27xx_fuel_gauge.ko needs both
+#   A repeated EXPORT_SYMBOL is fatal to modpost for the WHOLE build, so this
+#   also destroyed aw32257_charger.ko, which had compiled cleanly beforehand.
+#   CONFIG_OPLUS_CHG=n is not the fix: sc27xx_fuel_gauge.ko needs both
 #   cm_notify_event and oplus_gauge_init, and oplus_gauge_init is called from
-#   unisoc_battery.c:822 here and unisoc_battery.c:623 in the 5.4 tree, so the
-#   Oplus gauge helper is load-bearing in both.  sy65153_wireless_charger.ko
-#   wants cm_notify_event from it as well.
+#   unisoc_battery.c:822 here and :623 in 5.4, so the Oplus gauge helper is
+#   load-bearing either way.
 #
-#   The stock device loads sprd-charger-manager.ko and zero oplus modules, so
-#   Unisoc is the side this board wants.  Resolving it properly means splitting
-#   oplus_gauge_init out of oplus_chg without its cm_notify_event.  Charging is
-#   the one subsystem where guessing wrong risks the battery, so this is
-#   documented and withheld rather than guessed at.  The source fixes that
-#   unblock it (sprd_vchg_detect.c could not compile at all, and charger-manager.c
-#   was written against the non-Oplus battery API) are already committed, so the
-#   only thing standing between this and done is the symbol split.
+#   The real cause was a 5.15 fork regression, in two halves, both removed:
+#   oplus_battery_ums9230.c defined and exported its own cm_notify_event while
+#   keeping private g_cm/probe_done/cm_notify_type_handle, and v1/Makefile built
+#   sprd_fchg_extcon.o and sprd_vchg_detect.o into oplus_chg.ko, which call
+#   cm_notify_event nine times.  All of it was dead code on this board: the Oplus
+#   platform_driver matches "sprd,charger-manager" and no node in the live device
+#   tree has that compatible, and the function had no callers.  The 5.4 tree's
+#   copy of oplus_battery_ums9230.c has zero occurrences of cm_notify_event.
+#
+#   So sprd-charger-manager.ko is now built, and it is the only driver in the
+#   tree that can bind this board's charger-manager node.
 # ---------------------------------------------------------------------------
 # sprd-top-dvfs -> (genuinely absent from this 5.15 tree; NOT fixed here)
 #   Left unaliased on purpose so it keeps being reported.  The node
