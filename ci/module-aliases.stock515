@@ -101,8 +101,28 @@
 #   be resident before it, and the depmod index derives that ordering from the
 #   same symbol data.
 # ---------------------------------------------------------------------------
+# sprd_wdf -> sprd_aphang
+#   Not a rename in the usual sense either: there is no sprd_wdf.ko in 5.15.
+#   drivers/unisoc_platform/hang_debug/Makefile folds it in --
+#     obj-$(CONFIG_SPRD_APHANG)        += sprd_aphang.o
+#     sprd_aphang-$(CONFIG_SPRD_APHANG) += sprd_wdf.o sprd_wdh.o
+#   CONFIG_SPRD_APHANG is m and sprd_aphang.ko builds at 551144 bytes carrying
+#   the wdf code (14 wdf symbols, strings like "sprd_wdf: hrtimer restart on
+#   cpu%d").  It was not in modules.load because nothing named it and nothing
+#   else depends on it, so the coverage report kept listing sprd_wdf as a gap
+#   while the code sat built but unloaded.
+#
+#   This one is worth seeding deliberately rather than tidying away.  The stock
+#   device loads it, and CONFIG_SPRD_WDF_FEED_TIME_MS=8000 in the sharkl6
+#   fragment is otherwise a dead setting -- it is only an int, "modify feed
+#   watchdog time ms", with no driver switch of its own, so without this module
+#   nothing consumes it.  It is the AP hang watchdog feeder, which is both a
+#   safety path and, on a board with no serial console, part of the hang
+#   diagnosis story.
+# ---------------------------------------------------------------------------
 misc_sprd_uid:sprd_uid
 sprd_battery_info:sc27xx_fuel_gauge
+sprd_wdf:sprd_aphang
 sprd_gpu_cooling:sprd_thermal_ctl
 gnss_common_ctl_all:unisoc_gnss_common_ctl_all
 omnivision_td4160:omnivision_tcm-modules
