@@ -2654,42 +2654,32 @@ int cm_check_rp_limit_current(int rp_limit)
  * still called from it, so neither becomes unused.
  */
 
-/*
- * cm_notify_event() used to be defined here, duplicating the one in
- * drivers/power/supply/charger-manager.c and exporting it a second time.  That
- * made sprd-charger-manager.ko unbuildable -- a repeated EXPORT_SYMBOL is fatal
- * to modpost for the entire kernel, not just one module -- and it took
- * aw32257_charger.ko down with it.
- *
- * It is removed rather than made private because it was already unreachable
- * dead code on this board, on three independent counts:
- *
- *   1. Its platform_driver, charger_manager_driver at line 3154, matches
- *      "sprd,charger-manager" (charger_manager_match, line 587).  No node in
- *      the X6525's live device tree carries that compatible -- the only
- *      charger-manager node is the root one, compatible = "charger-manager",
- *      which drivers/power/supply/charger-manager.c claims.  So this driver
- *      never probes successfully here.
- *   2. The function had no callers at all.  The only references to it in the
- *      whole drivers/power/oplus/ tree were its own definition and export plus
- *      nine call sites in sprd_fchg_extcon.c and sprd_vchg_detect.c, and both
- *      of those files are no longer built into oplus_chg.ko -- see the note in
- *      drivers/power/oplus/v1/Makefile.
- *   3. It kept private copies of the charger-manager state (g_cm at line 75,
- *      probe_done, cm_notify_type_handle, misc_event_handler), i.e. it was a
- *      second, competing charger-manager rather than a helper.
- *
- * The 5.4 tree agrees: its copy of this same file is 2499 lines with zero
- * occurrences of cm_notify_event and zero of "charger_manager *g_cm", where
- * this one is 3189 lines with both.  The duplication is a 5.15 addition.
- *
- * charger-manager.c exports cm_notify_event as its one and only symbol, which
- * is the intended interface: Oplus supplies policy, the Unisoc charger-manager
- * core owns the state.  This file keeps the three helpers musb_sprd.c actually
- * calls -- oplus_get_bc12_done_sprd, oplus_get_charger_type_sprd and
- * oplus_is_not_sdp_clear_limit_status, all still exported below -- plus the PPS
- * and typec-notifier work, none of which duplicates charger-manager.c.
+/**
+ * cm_notify_event - charger driver notify Charger Manager of charger event
+ * @psy: pointer to instance of charger's power_supply
+ * @type: type of charger event
+ * @msg: optional message passed to uevent_notify function
  */
+void cm_notify_event(struct power_supply *psy, enum cm_event_types type, char *msg)
+{
+	struct charger_manager *cm = g_cm;
+	int wai_probe_cnt = 0;
+
+	while(probe_done != true && wai_probe_cnt < 20){
+		chg_err("delay 1ms to wait charger_manager_probe done, wai_probe_cnt = %d\n", wai_probe_cnt);
+		msleep(2);
+	}
+
+	cm = g_cm;
+
+	if(probe_done != true){
+		chg_err("charger_manager_probe maybe failed, notify return!\n");
+		return;
+	}
+
+	cm_notify_type_handle(cm, type, msg);
+}
+EXPORT_SYMBOL_GPL(cm_notify_event);
 
 struct oplus_chg_operations  oplus_chg_default_ops = {
 	.dump_registers = oplus_chg_default_method0,

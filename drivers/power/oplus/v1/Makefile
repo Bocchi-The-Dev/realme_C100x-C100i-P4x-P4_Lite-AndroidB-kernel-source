@@ -192,35 +192,10 @@ oplus_chg-$(CONFIG_OPLUS_CHARGER_MTK6789S) += \
 		charger_ic/oplus_battery_ums9230.o \
 		charger_ic/oplus_sgm41512.o \
 		charger_ic/oplus_sgm41542.o \
-		charger_ic/oplus_bq25910.o
+		charger_ic/oplus_bq25910.o \
+		charger_ic/sprd_fchg_extcon.o \
+		charger_ic/sprd_vchg_detect.o
 		#charger_ic/oplus_sy697x_sgm4154x.o
-		#
-		# charger_ic/sprd_fchg_extcon.o and charger_ic/sprd_vchg_detect.o were
-		# removed from this list.  Both are Unisoc fast-charge/vchg helpers, not
-		# Oplus code, and both already belong to sprd-charger-manager.ko:
-		#
-		#   drivers/power/supply/Makefile:72
-		#     sprd-charger-manager-objs := charger-manager.o sprd_vote.o
-		#                                 sprd_vchg_detect.o sprd_fchg_extcon.o
-		#
-		# The copies under oplus/v1/charger_ic/ are divergent forks, not
-		# duplicates of the same file -- 337 and 207 differing lines respectively
-		# against the power/supply versions -- so both sets were being built and
-		# both register the same fast-charge extcon surface.
-		#
-		# Removing them is what makes sprd-charger-manager.ko buildable at all.
-		# Those two files call cm_notify_event nine times, which forced oplus_chg.ko
-		# to carry its own definition of that symbol; oplus_battery_ums9230.c
-		# also defined it independently, and a repeated EXPORT_SYMBOL is fatal to
-		# modpost for the WHOLE build, not just the module:
-		#
-		#   FATAL: modpost: drivers/power/oplus/v1/oplus_chg: 'cm_notify_event'
-		#   exported twice.  Previous export was in
-		#   drivers/power/supply/sprd-charger-manager.ko
-		#
-		# See the note on cm_notify_event in oplus_battery_ums9230.c.  Nothing
-		# else in drivers/power/oplus/ references these two files except two
-		# #includes in oplus_battery_ums9230.h, so there are no other users.
 oplus_chg-$(CONFIG_OPLUS_CHARGER_MTK6985S) += \
 		charger_ic/oplus_mp2650.o \
 		charger_ic/oplus_usbtemp.o \

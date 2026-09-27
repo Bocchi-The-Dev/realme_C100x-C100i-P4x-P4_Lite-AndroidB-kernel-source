@@ -195,11 +195,10 @@ CONFIG_ION_SPRD=m
 #          that file; see the comment there.
 #
 #   charger-manager  compatible = "charger-manager"  status = "okay"
-#       -> the multi-charger policy layer.  This is the ONLY driver in the tree
-#          that can service that node: the Oplus copy of the same driver matches
-#          "sprd,charger-manager", and no node in the live device tree carries
-#          that compatible.  Enabling it needed a modpost-fatal symbol collision
-#          resolved first; see the long note below.
+#       -> BLOCKED, and deliberately left off.  See the long note below; the
+#          short version is that this tree ships two charger-manager
+#          implementations that both export cm_notify_event, and modpost treats
+#          that as fatal for the entire build.
 #
 # CONFIG_SPRD_UID (sprd_uid.ko, the vendor unit that backs the sprd_uid DT node)
 # is already enabled by the sharkl6 fragment and needs no directive here -- only
@@ -211,52 +210,206 @@ CONFIG_ION_SPRD=m
 # unlike sprd-charger-manager it stands alone and builds cleanly on its own.
 CONFIG_CHARGER_AW32257=m
 #
-# The charger-manager policy layer is enabled, after resolving a modpost-fatal
-# symbol collision that stood in the way of it.  The charger-manager DT node is
-# status = "okay" and the stock loader names sprd-charger-manager.ko, and this
-# is the only driver in the tree that can service it -- see below.
+# The charger-manager policy layer is withheld again, and the reason is now a
+# load-order cycle rather than the modpost collision it was.  Its DT node is
+# status = "okay" and the stock loader names sprd-charger-manager.ko, so this
+# looks like a one-line win.  It is not, and the second attempt failed worse
+# than the first.
 #
-# Enabling it first failed like this, and the failure was global, not local to
-# the module being enabled:
+# ATTEMPT 1 (commit a3d8d2e5b): both drivers exported cm_notify_event, so
+# enabling this symbol produced
 #
 #   FATAL: modpost: drivers/power/oplus/v1/oplus_chg: 'cm_notify_event'
 #   exported twice.  Previous export was in
 #   drivers/power/supply/sprd-charger-manager.ko
 #
-# A repeated EXPORT_SYMBOL is fatal to modpost for the whole build, which is how
-# this also destroyed the unrelated aw32257_charger.ko added in the same commit.
+# A repeated EXPORT_SYMBOL is fatal to modpost for the WHOLE build, so it also
+# destroyed the unrelated aw32257_charger.ko.  Loud, and therefore safe: the
+# build stopped.
 #
-# The collision was a 5.15 fork regression with two halves, both removed:
+# ATTEMPT 2 (commits fb19b225c, 1aaea2af6): removed the Oplus copy of
+# cm_notify_event as dead code -- correctly, since its platform_driver matches
+# "sprd,charger-manager" and no node in the live device tree carries that
+# compatible -- leaving sprd-charger-manager.ko as the sole provider.  modpost
+# went clean.  depmod then reported:
 #
-#   1. drivers/power/oplus/v1/charger_ic/oplus_battery_ums9230.c defined and
-#      exported its own cm_notify_event, keeping private copies of the
-#      charger-manager state (g_cm, probe_done, cm_notify_type_handle).  On this
-#      board that was dead code: its platform_driver matches "sprd,charger-manager"
-#      and no node in the live device tree carries that compatible -- the only
-#      charger-manager node is the root one, compatible = "charger-manager",
-#      which drivers/power/supply/charger-manager.c claims.  The function had no
-#      callers at all.  The 5.4 tree's copy of the same file is 2499 lines with
-#      zero occurrences of cm_notify_event; this one is 3189 lines with it.
+#   ERROR: Cycle detected: oplus_chg -> sprd_charger_manager ->
+#          sc27xx_fuel_gauge -> oplus_chg
+#   ../tools/depmod.c:1856: depmod_report_cycles_from_root:
+#          Assertion `is < stack_size' failed.
 #
-#   2. drivers/power/oplus/v1/Makefile built sprd_fchg_extcon.o and
-#      sprd_vchg_detect.o into oplus_chg.ko, which call cm_notify_event nine
-#      times and so needed it defined.  Both are Unisoc helpers that already
-#      belong to sprd-charger-manager.ko per drivers/power/supply/Makefile:72,
-#      and the oplus copies are divergent forks (337 and 207 differing lines), so
-#      both sets were registering the same fast-charge extcon surface.
+# The exact edges, measured with llvm-nm:
 #
-# charger-manager.c exports cm_notify_event as its single symbol, which is the
-# intended split: Oplus supplies policy, the Unisoc core owns the state.  The
-# three helpers musb_sprd.c genuinely calls -- oplus_get_bc12_done_sprd,
-# oplus_get_charger_type_sprd, oplus_is_not_sdp_clear_limit_status -- are
-# untouched and still exported, so USB keeps working, and oplus_gauge.o is
-# unconditional in that Makefile so sc27xx_fuel_gauge.ko keeps oplus_gauge_init.
+#   oplus_chg            -> sprd-charger-manager   sprd_fchg_info_register,
+#                                                     sprd_vchg_info_register
+#   sprd-charger-manager -> sc27xx_fuel_gauge       sprd_battery_get_battery_info,
+#                                                     sprd_battery_put_battery_info
+#   sc27xx_fuel_gauge    -> oplus_chg              oplus_gauge_init
+#   sc27xx_fuel_gauge    -> sprd-charger-manager   cm_notify_event
 #
-# That symbol depends on REGULATOR and selects EXTCON.  Its driver pulls in
-# charger-manager.o, sprd_vote.o, sprd_vchg_detect.o and sprd_fchg_extcon.o, and
-# two of those source files could not compile in this tree until fixed -- see the
-# sprd_vchg_detect and charger-manager commits.
-CONFIG_CHARGER_MANAGER=m
+# A cycle is the worse failure, because it is silent at build time.  modpost
+# passes, coverage passes, and at runtime modprobe simply cannot order the
+# three, so one of them is rejected with unresolved symbols.  Since
+# sc27xx_fuel_gauge.ko and sprd-charger-manager.ko are both in the load list,
+# that means either the fuel gauge or the charger manager fails to load.
+#
+# It is also NOT fixed by turning this symbol back off, which is the part that
+# makes reverting mandatory rather than merely cautious: attempt 2 deleted the
+# Oplus cm_notify_event, so with sprd-charger-manager absent there would be no
+# provider at all and sc27xx_fuel_gauge.ko would carry an unresolved
+# cm_notify_event.  The two changes are coupled.  Reverting both together
+# restores the state verified at a3d8d2e5b: oplus_chg exports cm_notify_event
+# and oplus_gauge_init, fuel_gauge depends only on oplus_chg, no cycle.
+#
+# WHY 5.4 HAS NO CYCLE, and what the remaining fix would be
+#
+# The stock device's own modules.dep is the reference:
+#
+#   sc27xx_fuel_gauge.ko: sprd-charger-manager.ko sprd_battery_info.ko sprd_tcpm.ko
+#   sprd-charger-manager.ko: sprd_battery_info.ko sprd_tcpm.ko
+#   sprd_battery_info.ko:                       <- separate module, no deps
+#
+# and cm_notify_event, oplus_gauge_init, sprd_fchg_info_register and
+# sprd_vchg_info_register appear nowhere in it, because the 5.4 device loads
+# ZERO oplus modules -- the Oplus stack is built into vmlinux there.  The
+# difference that matters is sprd_battery_info being its own module: 5.4's
+# sprd-charger-manager.ko depends on it, and it depends on nothing, which is
+# what lets sc27xx_fuel_gauge -> sprd-charger-manager -> sprd_battery_info stay
+# acyclic.  In this tree sprd_battery_info.o is folded into sc27xx_fuel_gauge.ko
+# (drivers/power/supply/Makefile:105), so that leg cannot be broken.
+#
+# So the fix is to split sprd_battery_info.o back out into sprd_battery_info.ko,
+# matching 5.4, which would give the valid order
+# sprd_battery_info -> sprd-charger-manager -> oplus_chg -> sc27xx_fuel_gauge.
+# It is blocked on one line: sprd_battery_info.c calls fgauge_get_profile_id()
+# at line 884, inside #ifdef OPLUS_FEATURE_CHG_BASIC, and that function is
+# exported by unisoc_battery.c, a sibling inside sc27xx_fuel_gauge.ko.  So the
+# split would immediately re-form the cycle in the other direction
+# (sprd_battery_info -> sc27xx_fuel_gauge) unless that one call is removed or
+# fgauge_get_profile_id is moved somewhere both can reach.  That is surgery on
+# battery code, which is not something to do unattended on the last step before
+# a flash.
+#
+# Making the Oplus stack built-in instead (that symbol as y, which routes
+# v1/ through its obj-y branch where oplus_gauge.o is listed separately) does
+# not help either: it removes the oplus_chg leg but leaves the two-module cycle
+# sc27xx_fuel_gauge -> sprd-charger-manager -> sc27xx_fuel_gauge intact.
+#
+# The source fixes from the three commits before this one are kept, because they
+# are correct independent of whether the symbol is enabled: sprd_vchg_detect.c
+# could not compile at all, and charger-manager.c was written against the
+# non-Oplus battery API.  They are prerequisites for the split, not wasted.
+#
+#   FATAL: modpost: drivers/power/oplus/v1/oplus_chg: 'cm_notify_event'
+#   exported twice.  Previous export was in
+#   drivers/power/supply/sprd-charger-manager.ko
+#
+# This tree carries two complete charger-manager implementations.  charger-manager.c
+# exports cm_notify_event at line 9372; the Oplus copy
+# drivers/power/oplus/v1/charger_ic/oplus_battery_ums9230.c exports it at 2719.
+# With the Oplus stack modular, oplus_chg.ko gets built, and a repeated EXPORT_SYMBOL
+# is fatal to modpost -- which is how this also swallowed the unrelated
+# aw32257_charger.ko the first time round.  The two are alternatives, the same
+# shape as camera/core versus camera/cam_sys and as the sprd-dmabuf duplicate:
+# two providers of one name.
+#
+# Dropping CONFIG_OPLUS_CHG is NOT the inverse, because the Oplus stack is
+# entangled with the fuel gauge.  sc27xx_fuel_gauge.ko carries two undefined
+# symbols, cm_notify_event and oplus_gauge_init, and oplus_gauge_init is called
+# from unisoc_battery.c:822.  The 5.4 tree does the same at
+# unisoc_battery.c:623, so the Oplus gauge helper is load-bearing in both trees
+# and switching it off breaks the fuel gauge instead of resolving anything.
+# sy65153_wireless_charger.ko also resolves cm_notify_event from it.
+#
+# The charger-manager policy layer is withheld again, and the reason is now a
+# load-order cycle rather than the modpost collision it was.  Its DT node is
+# status = "okay" and the stock loader names sprd-charger-manager.ko, so this
+# looks like a one-line win.  It is not, and the second attempt failed worse
+# than the first.
+#
+# ATTEMPT 1 (commit a3d8d2e5b): both drivers exported cm_notify_event, so
+# enabling this symbol produced
+#
+#   FATAL: modpost: drivers/power/oplus/v1/oplus_chg: 'cm_notify_event'
+#   exported twice.  Previous export was in
+#   drivers/power/supply/sprd-charger-manager.ko
+#
+# A repeated EXPORT_SYMBOL is fatal to modpost for the WHOLE build, so it also
+# destroyed the unrelated aw32257_charger.ko.  Loud, and therefore safe: the
+# build stopped.
+#
+# ATTEMPT 2 (commits fb19b225c, 1aaea2af6): removed the Oplus copy of
+# cm_notify_event as dead code -- correctly, since its platform_driver matches
+# "sprd,charger-manager" and no node in the live device tree carries that
+# compatible -- leaving sprd-charger-manager.ko as the sole provider.  modpost
+# went clean.  depmod then reported:
+#
+#   ERROR: Cycle detected: oplus_chg -> sprd_charger_manager ->
+#          sc27xx_fuel_gauge -> oplus_chg
+#   ../tools/depmod.c:1856: depmod_report_cycles_from_root:
+#          Assertion `is < stack_size' failed.
+#
+# The exact edges, measured with llvm-nm:
+#
+#   oplus_chg            -> sprd-charger-manager   sprd_fchg_info_register,
+#                                                     sprd_vchg_info_register
+#   sprd-charger-manager -> sc27xx_fuel_gauge       sprd_battery_get_battery_info,
+#                                                     sprd_battery_put_battery_info
+#   sc27xx_fuel_gauge    -> oplus_chg              oplus_gauge_init
+#   sc27xx_fuel_gauge    -> sprd-charger-manager   cm_notify_event
+#
+# A cycle is the worse failure, because it is silent at build time.  modpost
+# passes, coverage passes, and at runtime modprobe simply cannot order the
+# three, so one of them is rejected with unresolved symbols.  Since
+# sc27xx_fuel_gauge.ko and sprd-charger-manager.ko are both in the load list,
+# that means either the fuel gauge or the charger manager fails to load.
+#
+# It is also NOT fixed by turning this symbol back off, which is the part that
+# makes reverting mandatory rather than merely cautious: attempt 2 deleted the
+# Oplus cm_notify_event, so with sprd-charger-manager absent there would be no
+# provider at all and sc27xx_fuel_gauge.ko would carry an unresolved
+# cm_notify_event.  The two changes are coupled.  Reverting both together
+# restores the state verified at a3d8d2e5b: oplus_chg exports cm_notify_event
+# and oplus_gauge_init, fuel_gauge depends only on oplus_chg, no cycle.
+#
+# WHY 5.4 HAS NO CYCLE, and what the remaining fix would be
+#
+# The stock device's own modules.dep is the reference:
+#
+#   sc27xx_fuel_gauge.ko: sprd-charger-manager.ko sprd_battery_info.ko sprd_tcpm.ko
+#   sprd-charger-manager.ko: sprd_battery_info.ko sprd_tcpm.ko
+#   sprd_battery_info.ko:                       <- separate module, no deps
+#
+# and cm_notify_event, oplus_gauge_init, sprd_fchg_info_register and
+# sprd_vchg_info_register appear nowhere in it, because the 5.4 device loads
+# ZERO oplus modules -- the Oplus stack is built into vmlinux there.  The
+# difference that matters is sprd_battery_info being its own module: 5.4's
+# sprd-charger-manager.ko depends on it, and it depends on nothing, which is
+# what lets sc27xx_fuel_gauge -> sprd-charger-manager -> sprd_battery_info stay
+# acyclic.  In this tree sprd_battery_info.o is folded into sc27xx_fuel_gauge.ko
+# (drivers/power/supply/Makefile:105), so that leg cannot be broken.
+#
+# So the fix is to split sprd_battery_info.o back out into sprd_battery_info.ko,
+# matching 5.4, which would give the valid order
+# sprd_battery_info -> sprd-charger-manager -> oplus_chg -> sc27xx_fuel_gauge.
+# It is blocked on one line: sprd_battery_info.c calls fgauge_get_profile_id()
+# at line 884, inside #ifdef OPLUS_FEATURE_CHG_BASIC, and that function is
+# exported by unisoc_battery.c, a sibling inside sc27xx_fuel_gauge.ko.  So the
+# split would immediately re-form the cycle in the other direction
+# (sprd_battery_info -> sc27xx_fuel_gauge) unless that one call is removed or
+# fgauge_get_profile_id is moved somewhere both can reach.  That is surgery on
+# battery code, which is not something to do unattended on the last step before
+# a flash.
+#
+# Making the Oplus stack built-in instead (that symbol as y, which routes
+# v1/ through its obj-y branch where oplus_gauge.o is listed separately) does
+# not help either: it removes the oplus_chg leg but leaves the two-module cycle
+# sc27xx_fuel_gauge -> sprd-charger-manager -> sc27xx_fuel_gauge intact.
+#
+# The source fixes from the three commits before this one are kept, because they
+# are correct independent of whether the symbol is enabled: sprd_vchg_detect.c
+# could not compile at all, and charger-manager.c was written against the
+# non-Oplus battery API.  They are prerequisites for the split, not wasted.
 
 # CONFIG_UNISOC_DMABUF is deliberately NOT set.
 #   An earlier revision enabled it, which was wrong.  sprd-dmabuf is ALSO built
