@@ -2638,58 +2638,21 @@ int cm_check_rp_limit_current(int rp_limit)
 	return 0;
 }
 
-/**
- * misc_event_handler - Handler for other events
- * @cm: the Charger Manager representing the battery.
- * @type: the Charger Manager representing the battery.
+/*
+ * misc_event_handler() and cm_notify_type_handle() used to sit here, between
+ * cm_limit_current_update_work() and cm_notify_event().  Both were removed along
+ * with cm_notify_event(), which was the only caller of cm_notify_type_handle(),
+ * which was in turn the only caller of misc_event_handler().  They are static, so
+ * once the entry point went they tripped -Werror=unused-function.
+ *
+ * Both are reachable only through the charger-manager clone that was already
+ * dead on this board: cm_notify_event() was the sole path in, and its platform
+ * driver matches "sprd,charger-manager", which no node in the live device tree
+ * carries.  cm_update_charge_info() and cm_limit_current_update_work() are NOT
+ * part of that cascade and are untouched -- cm_limit_current_update_work is
+ * still registered via INIT_WORK in the probe path, and cm_update_charge_info is
+ * still called from it, so neither becomes unused.
  */
-static void misc_event_handler(struct charger_manager *cm, enum cm_event_types type)
-{
-
-	if (cm->vchg_info->chgr_online) {
-		dev_info(cm->dev, "%s: charger online!\n", __func__);
-		cm_update_charge_info(cm, (CM_CHARGE_INFO_CHARGE_LIMIT | CM_CHARGE_INFO_INPUT_LIMIT));
-	} else {
-		cancel_work_sync(&cm->limit_current_update_work);
-		dev_info(cm->dev, "%s: charger not online!\n", __func__);
-		cm->desc->fast_charger_type = 0;
-		cm->desc->charger_type = 0;
-		cm->charging_status = 0;
-		cm->desc->usb_charge_en = 0;
-		cm->vchg_info->usb_limit = -EINVAL;
-		cm->desc->rp_limit_current = -EINVAL;
-		cm->desc->pd_req_cur_ua = -EINVAL;
-		cm->desc->limit_status = 0;
-		cm->vchg_info->charger_type_cnt = 0;
-		cm->desc->adapter_max_vbus = 0;
-		cm->desc->charge_type_poll_count = 0;
-	}
-}
-
-/**
- * cm_notify_type_handle - charger driver handle charger event
- * @cm: the Charger Manager representing the battery
- * @type: type of charger event
- * @msg: optional message passed to uevent_notify function
- */
-static void cm_notify_type_handle(struct charger_manager *cm, enum cm_event_types type, char *msg)
-{
-	switch (type) {
-	case CM_EVENT_WL_CHG_START_STOP:
-	case CM_EVENT_EXT_PWR_IN_OUT ... CM_EVENT_CHG_START_STOP:
-		misc_event_handler(cm, type);
-		break;
-	case CM_EVENT_UPDATE_USB_LIMINT:
-		cm->desc->limit_status |= CM_CHARGE_USB_LIMIT_CMD;
-		schedule_work(&cm->limit_current_update_work);
-		break;
-	case CM_EVENT_UNKNOWN:
-	case CM_EVENT_OTHERS:
-	default:
-		dev_err(cm->dev, "%s: type not specified\n", __func__);
-		break;
-	}
-}
 
 /*
  * cm_notify_event() used to be defined here, duplicating the one in
