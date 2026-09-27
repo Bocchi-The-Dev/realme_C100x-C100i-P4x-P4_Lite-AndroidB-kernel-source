@@ -211,8 +211,8 @@ CONFIG_ION_SPRD=m
 # unlike sprd-charger-manager it stands alone and builds cleanly on its own.
 CONFIG_CHARGER_AW32257=m
 #
-# CONFIG_CHARGER_MANAGER is enabled, after resolving a modpost-fatal symbol
-# collision that stood in the way of it.  The charger-manager DT node is
+# The charger-manager policy layer is enabled, after resolving a modpost-fatal
+# symbol collision that stood in the way of it.  The charger-manager DT node is
 # status = "okay" and the stock loader names sprd-charger-manager.ko, and this
 # is the only driver in the tree that can service it -- see below.
 #
@@ -252,10 +252,10 @@ CONFIG_CHARGER_AW32257=m
 # untouched and still exported, so USB keeps working, and oplus_gauge.o is
 # unconditional in that Makefile so sc27xx_fuel_gauge.ko keeps oplus_gauge_init.
 #
-# CONFIG_CHARGER_MANAGER depends on REGULATOR and selects EXTCON.  Its driver
-# pulls in charger-manager.o, sprd_vote.o, sprd_vchg_detect.o and
-# sprd_fchg_extcon.o, and two of those source files could not compile in this
-# tree until fixed -- see the sprd_vchg_detect and charger-manager commits.
+# That symbol depends on REGULATOR and selects EXTCON.  Its driver pulls in
+# charger-manager.o, sprd_vote.o, sprd_vchg_detect.o and sprd_fchg_extcon.o, and
+# two of those source files could not compile in this tree until fixed -- see the
+# sprd_vchg_detect and charger-manager commits.
 CONFIG_CHARGER_MANAGER=m
 
 # CONFIG_UNISOC_DMABUF is deliberately NOT set.
