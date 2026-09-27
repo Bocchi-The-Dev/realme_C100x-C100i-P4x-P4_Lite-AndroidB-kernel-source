@@ -144,6 +144,36 @@ do_config() {
 	echo "kernelrelease: $(make LLVM=1 ARCH=arm64 O=out -s kernelrelease)"
 }
 
+do_dtbs() {
+	# Every dtbo-y list in arch/arm64/boot/dts/sprd/Makefile sits inside
+	# 'ifeq ($(BSP_BUILD_DT_OVERLAY),y)'.  Neither this script nor
+	# ci/build-vendor-modules.sh ever set it, so "make Image" produced ZERO
+	# .dtbo files -- none of the 39 overlays this tree can build, including
+	# ums9230-1h10_go-overlay.dtbo, whose compatible is the one matching this
+	# board.
+	#
+	# It went unnoticed because CONFIG_OF=y, so device-tree support really is
+	# compiled in, and because the board carries separate dtb_a/dtbo_a
+	# partitions: the 5.15 kernel was booting on the STOCK 5.4 DTB with nothing
+	# reporting a problem.  Cross-referencing our overlay against the live 5.4
+	# device tree then showed the two are not interchangeable -- 13 of our 24
+	# real nodes do not exist in the stock DTB at all.
+	#
+	# Running on the stock DTB is still defensible: it is what the 5.4 kernel
+	# used, and the drivers we ship bind against it.  So this changes nothing
+	# about what gets flashed.  What it fixes is that the overlays are now
+	# actually built and therefore diffable, which is what made the
+	# cross-reference possible in the first place.
+	make LLVM=1 LLVM_IAS=1 ARCH=arm64 O=out \
+		BSP_BUILD_FAMILY=qogirl6 \
+		BSP_BUILD_DT_OVERLAY=y \
+		BSP_BUILD_ANDROID_OS=y \
+		-j"$(nproc)" dtbs
+	echo "overlays built: $(find out/arch/arm64/boot/dts/sprd -name '*.dtbo' 2>/dev/null | wc -l)"
+	ls -la out/arch/arm64/boot/dts/sprd/ums9230-1h10_go-overlay.dtbo 2>/dev/null \
+		|| echo "WARNING: this board's overlay (ums9230-1h10_go) did not build"
+}
+
 do_image() {
 	make LLVM=1 LLVM_IAS=1 ARCH=arm64 O=out BSP_BUILD_FAMILY=qogirl6 \
 		-j"$(nproc)" Image
@@ -198,8 +228,9 @@ export PATH="${CLANG_DIR}/bin:${PATH}"
 case "${STAGE}" in
 	config)   do_config ;;
 	image)    do_image ;;
+	dtbs)     do_dtbs ;;
 	modules)  do_modules ;;
 	coverage) do_coverage ;;
-	all)      do_config && do_image && do_modules && do_coverage ;;
+	all)      do_config && do_dtbs && do_image && do_modules && do_coverage ;;
 	*) echo "unknown stage '${STAGE}'"; exit 2 ;;
 esac
